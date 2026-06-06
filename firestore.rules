@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUser().role == 'admin';
+    }
+
+    function isSeller() {
+      return isAuthenticated() && getUser().role == 'seller';
+    }
+
+    function isAdminOrSeller() {
+      return isAdmin() || isSeller();
+    }
+
+    function isCustomer() {
+      return isAuthenticated() && getUser().role == 'customer';
+    }
+
+    // Users
+    match /users/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin() || request.auth.uid == uid;
+      allow delete: if isAdmin();
+    }
+
+    // Vehicles
+    match /vehicles/{vehicleId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdminOrSeller();
+      allow delete: if isAdmin();
+    }
+
+    // Customers
+    match /customers/{customerId} {
+      allow read: if isAdminOrSeller();
+      allow create, update: if isAdminOrSeller();
+      allow delete: if isAdmin();
+    }
+
+    // Contracts
+    match /contracts/{contractId} {
+      allow read: if isAdmin()
+        || (isSeller() && resource.data.sellerId == request.auth.uid)
+        || (isCustomer() && resource.data.customerId == request.auth.uid);
+      allow create: if isAdminOrSeller();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      // Installments subcollection
+      match /installments/{installmentId} {
+        allow read: if isAdmin()
+          || (isSeller() && get(/databases/$(database)/documents/contracts/$(contractId)).data.sellerId == request.auth.uid)
+          || (isCustomer() && get(/databases/$(database)/documents/contracts/$(contractId)).data.customerId == request.auth.uid);
+        allow create, update: if isAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Payments
+    match /payments/{paymentId} {
+      allow read: if isAdmin()
+        || (isSeller() && resource.data.registeredBy == request.auth.uid)
+        || (isCustomer() && resource.data.customerId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // Warranties
+    match /warranties/{warrantyId} {
+      allow read: if isAdminOrSeller()
+        || (isCustomer() && resource.data.customerId == request.auth.uid);
+      allow create, update: if isAdminOrSeller();
+      allow delete: if isAdmin();
+    }
+
+    // Workshops
+    match /workshops/{workshopId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Revisions
+    match /revisions/{revisionId} {
+      allow read: if isAdminOrSeller()
+        || (isCustomer() && resource.data.customerId == request.auth.uid);
+      allow create, update: if isAdminOrSeller();
+      allow delete: if isAdmin();
+    }
+
+    // Commissions
+    match /commissions/{commissionId} {
+      allow read: if isAdmin()
+        || (isSeller() && resource.data.sellerId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Audit logs
+    match /audit/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+  }
+}

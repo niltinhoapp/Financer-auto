@@ -1,0 +1,17 @@
+{
+  "name": "financer-auto",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "web",
+    "mobile",
+    "shared",
+    "functions"
+  ],
+  "scripts": {
+    "web": "npm run dev --workspace=web",
+    "mobile": "npm run start --workspace=mobile",
+    "functions:build": "npm run build --workspace=functions",
+    "functions:deploy": "firebase deploy --only functions"
+  }
+}
