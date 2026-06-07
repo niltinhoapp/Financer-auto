@@ -15,6 +15,8 @@ export interface CustomerDocuments {
   incomeProof?: string;
 }
 
+export type CustomerApprovalStatus = "pending" | "approved" | "rejected";
+
 export interface Customer {
   id: string;
   name: string;
@@ -25,6 +27,11 @@ export interface Customer {
   email?: string;
   address: CustomerAddress;
   documents: CustomerDocuments;
+  approvalStatus: CustomerApprovalStatus;
+  authUid?: string; // vínculo com users/{uid} quando o acesso é criado
+  approvalNote?: string;
+  approvedBy?: string;
+  approvedAt?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

@@ -13,5 +13,8 @@
     "mobile": "npm run start --workspace=mobile",
     "functions:build": "npm run build --workspace=functions",
     "functions:deploy": "firebase deploy --only functions"
+  },
+  "devDependencies": {
+    "firebase-admin": "^13.10.0"
   }
 }

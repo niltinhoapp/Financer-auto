@@ -7,6 +7,7 @@ export interface User {
   email: string;
   phone?: string;
   active: boolean;
+  customerId?: string; // vínculo com customers/{id} quando role === "customer"
   createdAt: string;
   updatedAt: string;
 }

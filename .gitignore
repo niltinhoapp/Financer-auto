@@ -4,7 +4,8 @@ node_modules/
 *.local
 .next/
 dist/
-lib/
+functions/lib/
 .firebase/
 firebase-debug.log
 .firebaserc.local
+scripts/serviceAccount.json
