@@ -15,9 +15,15 @@ export default function VendedoresPage() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
 
   async function load() {
-    const s = await getUsersByRole("seller");
-    setSellers(s);
-    setLoading(false);
+    try {
+      const s = await getUsersByRole("seller");
+      setSellers(s);
+    } catch (err) {
+      console.error("Erro ao carregar vendedores:", err);
+      setSellers([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
