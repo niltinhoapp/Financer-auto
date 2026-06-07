@@ -14,3 +14,8 @@ export const criarVendedorFn = httpsCallable<
   { name: string; email: string; phone?: string; password: string },
   { success: boolean; uid: string }
 >(functions, "criarVendedor");
+
+export const assinarContratoFn = httpsCallable<
+  { contractId: string; signerName: string; signerCpf: string },
+  { success: boolean; signature: { signedAt: string; signerName: string; signerCpf: string } }
+>(functions, "assinarContrato");

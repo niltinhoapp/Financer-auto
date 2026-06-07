@@ -207,6 +207,71 @@ export const criarVendedor = onCall(async (request) => {
   return { success: true, uid };
 });
 
+// Assinatura eletrônica do contrato pelo próprio cliente
+export const assinarContrato = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) throw new HttpsError("unauthenticated", "Não autenticado");
+
+  const { contractId, signerName, signerCpf } = request.data as {
+    contractId: string;
+    signerName: string;
+    signerCpf: string;
+  };
+
+  if (!contractId || !signerName || !signerCpf) {
+    throw new HttpsError("invalid-argument", "contractId, signerName e signerCpf são obrigatórios");
+  }
+
+  const callerDoc = await db.collection("users").doc(callerUid).get();
+  const callerData = callerDoc.data();
+  if (callerData?.role !== "customer" || !callerData?.customerId) {
+    throw new HttpsError("permission-denied", "Apenas o cliente vinculado ao contrato pode assiná-lo");
+  }
+
+  const contractRef = db.collection("contracts").doc(contractId);
+  const contractSnap = await contractRef.get();
+  if (!contractSnap.exists) {
+    throw new HttpsError("not-found", "Contrato não encontrado");
+  }
+  const contract = contractSnap.data();
+
+  if (contract?.customerId !== callerData.customerId) {
+    throw new HttpsError("permission-denied", "Este contrato não pertence a este cliente");
+  }
+
+  if (contract?.signature) {
+    throw new HttpsError("already-exists", "Este contrato já foi assinado anteriormente");
+  }
+
+  // Confere se o nome/CPF informados batem com o cadastro do cliente —
+  // garante que quem assina é de fato o titular dos dados (camada 1 de validação)
+  const customerSnap = await db.collection("customers").doc(callerData.customerId).get();
+  const customer = customerSnap.data();
+  const normalizedCpf = (signerCpf || "").replace(/\D/g, "");
+  if (!customer || customer.cpf !== normalizedCpf) {
+    throw new HttpsError("failed-precondition", "O CPF informado não corresponde ao cadastro do cliente");
+  }
+
+  const signature = {
+    signerUid: callerUid,
+    signerName,
+    signerCpf: normalizedCpf,
+    signedAt: new Date().toISOString(),
+    userAgent: request.rawRequest?.headers?.["user-agent"] ?? "",
+    ip:
+      (request.rawRequest?.headers?.["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
+      request.rawRequest?.ip ??
+      "",
+  };
+
+  await contractRef.update({
+    signature,
+    updatedAt: new Date().toISOString(),
+  });
+
+  return { success: true, signature };
+});
+
 // Registrar pagamento e atualizar parcela
 export const registerPayment = onCall(async (request) => {
   if (!request.auth) {

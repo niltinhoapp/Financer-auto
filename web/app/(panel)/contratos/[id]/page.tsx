@@ -113,6 +113,38 @@ export default function ContratoDetailPage() {
         <span className="text-xs text-gray-400 font-mono">{id}</span>
       </div>
 
+      {/* Status da assinatura digital */}
+      <div
+        className={`flex items-center gap-3 rounded-xl p-4 mb-6 border text-sm ${
+          contract.signature
+            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+            : "bg-amber-50 border-amber-200 text-amber-800"
+        }`}
+      >
+        {contract.signature ? (
+          <>
+            <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold">Contrato assinado digitalmente</p>
+              <p className="text-xs mt-0.5 opacity-80">
+                {contract.signature.signerName} · CPF {contract.signature.signerCpf} ·{" "}
+                {new Date(contract.signature.signedAt).toLocaleString("pt-BR")}
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold">Aguardando assinatura do cliente</p>
+              <p className="text-xs mt-0.5 opacity-80">
+                O cliente pode ler e assinar o contrato digitalmente pelo portal &quot;Minha Área&quot;.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <p className="text-xs text-gray-500">Cliente</p>

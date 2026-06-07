@@ -2,6 +2,17 @@ export type ContractStatus = "active" | "settled" | "defaulted" | "renegotiated"
 export type InstallmentStatus = "pending" | "paid" | "overdue" | "renegotiated";
 export type PaymentMethod = "cash" | "pix" | "credit_card" | "transfer" | "check";
 
+// Assinatura digital simples (eletrônica) do comprador: nome digitado +
+// confirmação de leitura + carimbo de data/hora + metadados de auditoria.
+export interface ContractSignature {
+  signerUid: string;
+  signerName: string;
+  signerCpf: string;
+  signedAt: string;
+  ip?: string;
+  userAgent?: string;
+}
+
 export interface Contract {
   id: string;
   customerId: string;
@@ -22,6 +33,7 @@ export interface Contract {
   status: ContractStatus;
   pdfUrl?: string;
   notes?: string;
+  signature?: ContractSignature;
 
   createdAt: string;
   updatedAt: string;

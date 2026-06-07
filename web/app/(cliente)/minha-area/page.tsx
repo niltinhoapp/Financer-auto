@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +12,7 @@ import { calcularValorAtualizado } from "@/lib/financiamento";
 import type { Contract, Installment, Customer } from "@financer-auto/shared";
 import {
   Car, FileText, CheckCircle, Clock, AlertCircle,
-  DollarSign, TrendingUp, Calendar,
+  DollarSign, TrendingUp, Calendar, FileSignature, ChevronRight,
 } from "lucide-react";
 
 const statusConfig = {
@@ -106,6 +107,29 @@ export default function MinhaAreaPage() {
           </div>
         </div>
       )}
+
+      {/* Chamada para leitura/assinatura do contrato */}
+      <Link
+        href="/minha-area/contrato"
+        className={`flex items-center gap-3 rounded-xl p-4 border transition-colors ${
+          contract.signature
+            ? "bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+            : "bg-amber-50 border-amber-200 hover:bg-amber-100"
+        }`}
+      >
+        <FileSignature className={`w-5 h-5 flex-shrink-0 ${contract.signature ? "text-emerald-600" : "text-amber-600"}`} />
+        <div className="flex-1">
+          <p className={`text-sm font-semibold ${contract.signature ? "text-emerald-800" : "text-amber-800"}`}>
+            {contract.signature ? "Contrato assinado digitalmente" : "Assinatura do contrato pendente"}
+          </p>
+          <p className={`text-xs mt-0.5 ${contract.signature ? "text-emerald-700" : "text-amber-700"}`}>
+            {contract.signature
+              ? "Toque para ler novamente o contrato e ver os detalhes da assinatura."
+              : "Toque para ler o contrato completo e assinar digitalmente — leva menos de 2 minutos."}
+          </p>
+        </div>
+        <ChevronRight className={`w-4 h-4 flex-shrink-0 ${contract.signature ? "text-emerald-500" : "text-amber-500"}`} />
+      </Link>
 
       {/* Card do contrato */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
