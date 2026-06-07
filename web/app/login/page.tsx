@@ -1,30 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
-  const { login, user } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // O login() apenas autentica; o AuthContext popula `user` de forma assíncrona
+  // (onAuthStateChanged + busca do perfil no Firestore). Redirecionar aqui via
+  // efeito — assim que `user` estiver disponível — evita a corrida que mandava
+  // o usuário de volta para /login antes do perfil carregar (exigindo logar 2x).
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/");
+    }
+  }, [user, authLoading, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setSubmitting(true);
     try {
       await login(email, password);
-      router.replace("/");
+      // O efeito acima cuida do redirecionamento assim que `user` for populado.
     } catch {
       setError("E-mail ou senha incorretos.");
-    } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
+
+  const loading = submitting || (!!user && authLoading);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
