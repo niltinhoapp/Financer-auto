@@ -224,6 +224,68 @@ export const criarVendedor = onCall(async (request) => {
   return { success: true, uid };
 });
 
+// Criar usuário financeiro (Auth + documento users/) — só admin.
+// Espelha criarVendedor acima; mantido como função separada em vez de
+// parametrizar a existente para não alterar o comportamento de algo
+// que já está em uso.
+export const criarFinanceiro = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) throw new HttpsError("unauthenticated", "Não autenticado");
+
+  const callerDoc = await db.collection("users").doc(callerUid).get();
+  if (callerDoc.data()?.role !== "admin") {
+    throw new HttpsError("permission-denied", "Apenas administradores podem criar usuários financeiros");
+  }
+
+  const { name, email, phone, password } = request.data as {
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+  };
+
+  if (!name || !email || !password) {
+    throw new HttpsError("invalid-argument", "name, email e password são obrigatórios");
+  }
+
+  let uid: string;
+  let isNewAuthUser = false;
+  try {
+    const existing = await admin.auth().getUserByEmail(email);
+    uid = existing.uid;
+  } catch {
+    const newUser = await admin.auth().createUser({ email, password, displayName: name });
+    uid = newUser.uid;
+    isNewAuthUser = true;
+  }
+
+  const existingDoc = await db.collection("users").doc(uid).get();
+  const existingRole = existingDoc.data()?.role;
+  if (existingDoc.exists && existingRole && existingRole !== "financial") {
+    throw new HttpsError(
+      "already-exists",
+      `Este e-mail já pertence a um usuário com papel "${existingRole}". Use outro e-mail para o financeiro.`
+    );
+  }
+
+  if (!isNewAuthUser) {
+    await admin.auth().updateUser(uid, { password, displayName: name });
+  }
+
+  await db.collection("users").doc(uid).set({
+    uid,
+    role: "financial",
+    name,
+    email,
+    phone: phone ?? "",
+    active: true,
+    createdAt: existingDoc.data()?.createdAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+
+  return { success: true, uid };
+});
+
 // Excluir (ou desativar) vendedor — só admin
 export const excluirVendedor = onCall(async (request) => {
   const callerUid = request.auth?.uid;
@@ -362,13 +424,13 @@ export const registerPayment = onCall(async (request) => {
     );
   }
 
-  // Somente admin ou o vendedor dono do contrato podem registrar pagamentos
+  // Somente admin, financeiro, ou o vendedor dono do contrato podem registrar pagamentos
   const callerDoc = await db.collection("users").doc(callerUid).get();
   const callerRole = callerDoc.data()?.role;
-  if (callerRole !== "admin" && callerRole !== "seller") {
+  if (callerRole !== "admin" && callerRole !== "seller" && callerRole !== "financial") {
     throw new HttpsError(
       "permission-denied",
-      "Apenas administradores ou vendedores podem registrar pagamentos"
+      "Apenas administradores, financeiro ou vendedores podem registrar pagamentos"
     );
   }
 
@@ -746,7 +808,7 @@ export const limparDados = onCall({ timeoutSeconds: 540 }, async (request) => {
 /* ═══════════════════════ SEGURANÇA DE ARQUIVOS (LGPD) ═══════════════════════ */
 
 // Gera URL assinada de curta duração para visualizar um arquivo privado.
-// Permissões: admin/vendedor veem tudo; cliente vê apenas os próprios arquivos.
+// Permissões: admin/vendedor/financeiro veem tudo; cliente vê apenas os próprios arquivos.
 export const gerarUrlAssinada = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Não autenticado");
@@ -757,7 +819,7 @@ export const gerarUrlAssinada = onCall(async (request) => {
   const caller = (await db.collection("users").doc(uid).get()).data();
   const role = caller?.role;
 
-  if (role !== "admin" && role !== "seller") {
+  if (role !== "admin" && role !== "seller" && role !== "financial") {
     // Cliente: só pode acessar arquivos das próprias pastas
     const cid = caller?.customerId;
     const permitido = cid && (
@@ -936,7 +998,7 @@ export const notificarCliente = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Não autenticado");
   const caller = (await db.collection("users").doc(uid).get()).data();
-  if (caller?.role !== "admin" && caller?.role !== "seller")
+  if (caller?.role !== "admin" && caller?.role !== "seller" && caller?.role !== "financial")
     throw new HttpsError("permission-denied", "Acesso negado");
 
   const { customerId, tipo, mensagem } = request.data as {

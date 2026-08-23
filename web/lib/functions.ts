@@ -15,6 +15,11 @@ export const criarVendedorFn = httpsCallable<
   { success: boolean; uid: string }
 >(functions, "criarVendedor");
 
+export const criarFinanceiroFn = httpsCallable<
+  { name: string; email: string; phone?: string; password: string },
+  { success: boolean; uid: string }
+>(functions, "criarFinanceiro");
+
 export const excluirVendedorFn = httpsCallable<
   { uid: string },
   { success: boolean; mode: "deleted" | "deactivated" }
