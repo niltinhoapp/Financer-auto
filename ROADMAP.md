@@ -24,6 +24,23 @@ Antes de qualquer item da seção 3 ("Módulos de uma revenda 100% funcional"), 
 
 ---
 
+## Etapa 0 — Saneamento do baseline Git (2026-08-23) — ✅ CONCLUÍDA
+
+Antes da Fase 2 (CRM), o repositório tinha 41 arquivos funcionais reais nunca commitados (achado do checkpoint pré-Fase 2). Revalidado, classificado (nenhum segredo em nenhum), e versionado em 4 commits lógicos e isolados — sem alterar nenhum comportamento:
+
+| Commit | Conteúdo | Arquivos |
+|---|---|---|
+| `61e751c` | Páginas (rotas Next.js: loja virtual, painel admin, error boundaries, robots/sitemap) | 15 |
+| `2691c09` | Componentes/contexts (`Toast`, `ThemeContext`, `SelecaoExclusao`, etc. — dependências transitivas de quase toda a UI) | 11 |
+| `6520122` | Assets PWA (ícones, manifest, service worker) | 7 |
+| `9e61ba2` | Configuração (Sentry, instrumentation, `vercel.json`) | 6 |
+
+**Deliberadamente não versionado:** `.claude/launch.json` (raiz e `web/`) — preferência local de dev tooling, não necessário pra reproduzir/buildar o projeto.
+
+**Validação pós-baseline:** `tsc --noEmit` limpo (shared/web/functions), `npm run lint` — 0 erros, 46 warnings (mesmos de antes, nenhum novo), `npm run build` — 33 rotas, sucesso. `git status` final: só os 2 arquivos de dev tooling untracked, por escolha.
+
+---
+
 ## Fase 1 — Consolidar o que já existe
 
 ### ✅ 1.1 Gestão de acesso — CONCLUÍDO (2026-08-23)
