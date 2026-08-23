@@ -135,7 +135,23 @@ Mesmo princípio já usado no DRE simplificado (Fase 1.4): derivar primeiro, cri
 
 **Verificação paralela (visualização de `sellerId` por outro seller):** confirmado no código do Bloco 2.2 — um seller vendo o lead de outro seller enxerga só `"Vendedor responsável atribuído"` (genérico), nunca nome ou UID. Já está correto, nenhuma mudança necessária.
 
-### ⏳ 2.5 Follow-up/lembretes (WhatsApp fica pra Fase 7)
+### ✅ 2.5 Follow-up interno — CONCLUÍDO (2026-08-23)
+
+**Modelo A implementado** (commit `a8fb1e0`): campos direto no `Lead` (`nextFollowUpAt`, `nextFollowUpNote`, `followUpStatus: "pending"|"done"`), todos opcionais. Responsável reaproveita `sellerId` do Bloco 2.2 — não duplicado. Nenhuma collection nova.
+
+**Tipo de data (decisão do PRE-CHECK):** `Timestamp`/`serverTimestamp` do Firestore está importado num arquivo do projeto mas **nunca chamado de fato** — código morto. O padrão real e consistente em toda a base é string ISO8601 (`new Date().toISOString()`). Usei ISO8601 com hora completa (diferente do `Revision.nextDueDate`, que é só data) porque follow-up precisa de precisão de horário e comparação por intervalo.
+
+**Timezone:** conversão `datetime-local` (input do navegador) ↔ ISO8601 (armazenado) feita via getters locais do `Date` (`getHours`/`getFullYear`/etc.) nos dois sentidos — evita o bug clássico de salvar num fuso e reler deslocado.
+
+**"Hoje" vs. "Atrasado":** deliberadamente **não** compara o instante exato — usa início do dia local como limiar, então um follow-up de hoje às 9h continua aparecendo como "Hoje" (não "Atrasado") quando visto às 14h. Exatamente o cuidado pedido no PRE-CHECK.
+
+**Achado corrigido durante a validação:** a auditoria de "concluído" originalmente não registrava a nota/data concluída. Como o Modelo A só guarda 1 follow-up por vez (um novo agendamento sobrescreve o anterior), essa informação seria perdida pra sempre sem estar no audit. Corrigido antes do commit — a descrição da auditoria de conclusão agora inclui o que foi concluído.
+
+**Filtros** (Todos/Hoje/Atrasados/Pendentes/Sem follow-up) são derivados no cliente sobre os leads já carregados — sem índice novo, sem query nova.
+
+**Nenhuma Firestore Rule alterada.** Nenhuma nova leitura de `users` foi introduzida (protegendo o que o Bloco 2.2 já corrigiu pra sellers).
+
+**Dívida técnica registrada (item 8 do bloco, não corrigida agora):** hoje qualquer seller pode ler e alterar (status, `sellerId`, follow-up) o Lead de **qualquer outro seller** — não há isolamento por `sellerId` nas Firestore Rules (`leads: read/update: isAdminOrSeller()`, sem filtro por dono). Esse é comportamento pré-existente de todo o CRM, não introduzido pelo follow-up. Fica marcado pra uma revisão futura de política de acesso a Lead que trate **junto**: status, sellerId, e follow-up — não uma correção parcial só pro follow-up.
 
 ---
 
