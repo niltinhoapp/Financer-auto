@@ -47,7 +47,13 @@ Implementado em 3 commits isolados, cada um validado (`tsc`+`eslint`+`build`) e 
 Auditoria (commit `fc41b2d`): estrutura de garantia/revisão já sólida — `Warranty`/`Revision` com vínculos reais (`contractId`/`vehicleId`/`customerId`), CRUD funcional, tela do cliente completa. Zero automação no backend (confirmado por grep em `functions/src/index.ts`). Único gap real pra reengajamento futuro: nenhum dos dois tipos guardava quando era a **próxima** manutenção esperada — só o histórico do que já foi feito.
 
 Mudança mínima e aditiva: `Revision.nextDueDate?: string` — 1 input opcional no formulário existente, exibido na tabela do admin e na tela do cliente. Sem Cloud Function, sem regra nova, sem cron, sem WhatsApp (fica pra Fase 7).
-### ⏳ 1.3 Comissionamento — auditar cálculo/persistência, preparar distinção vendedor × correspondente
+### ✅ 1.3 Comissionamento — CONCLUÍDO (2026-08-23)
+
+Auditoria (commit `64ae438`): `comissoes/page.tsx` já tem lançamento manual, agrupamento por vendedor e baixa de pagamento funcionando — nada recriado. Achado: o tipo `Commission` compartilhado não era importado em lugar nenhum do código (a página usa uma interface local própria), então a mudança teve risco zero.
+
+**Achados colaterais registrados, não corrigidos** (fora do escopo desta fase): `vehicleName`/`customerName` gravados com valores incorretos (parecem placeholder de código incompleto); `tab`/`setTab`/`filteredComm` são código morto (sem botões de aba na UI).
+
+Mudança: `Commission.type?: "seller"|"correspondent"|"other"`, `sellerId` virou opcional, `partnerId`/`partnerName` adicionados — só o tipo, a página não foi tocada. Fica pronto pra quando a Fase 4/5 precisar persistir comissão de correspondente.
 ### ⏳ 1.4 Fluxo financeiro — mapear Venda→recebimento→receita→despesa→resultado, avaliar DRE derivado
 
 ---
