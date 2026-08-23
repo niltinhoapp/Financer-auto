@@ -196,7 +196,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 
 **3.7 — ✅ CORRIGIDO** — Labels não associados via `htmlFor`/`id` em `clientes/novo`, `veiculos/novo`, `contratos/novo`, `clientes/[id]` — leitor de tela não anunciava o rótulo ao focar o input. **Correção (commit `e87c1ea`):** todos os campos desses 4 formulários (39 campos no total) ganharam `id`/`htmlFor` correspondentes.
 
-**3.8** — Modal de restrição sem `role="dialog"`, sem foco automático. Botão de fechar já ganhou `aria-label` no commit `e87c1ea`; `role="dialog"` + foco automático ficam pendentes.
+**3.8 — ✅ CORRIGIDO** — Modal de restrição sem `role="dialog"`, sem foco automático. **Correção (commit `cc3d86f`):** `role="dialog"` + `aria-modal="true"` + `aria-labelledby` no painel do modal, foco automático no textarea ao abrir, fecha com Escape e com clique no overlay.
 
 **3.9 — ✅ CORRIGIDO** — Botões só-ícone sem `aria-label` — voltar, remover foto, marcar principal, aprovar/recusar documento, fechar modal, copiar PIX/link, excluir despesa/oficina usavam apenas `title` (não confiável para leitor de tela/toque). **Correção (commit `e87c1ea`):** `aria-label` adicionado em todos, `title` mantido onde já existia.
 
