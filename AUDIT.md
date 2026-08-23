@@ -34,11 +34,13 @@ A função só checa `if (!request.auth)`, nunca valida `role`. Como usa Admin S
 
 ### 🟠 ALTO
 
-**1.2 — `functions/src/index.ts:101` — senha temporária previsível/curta**
+**1.2 — 🟡 PARCIALMENTE CORRIGIDO — `functions/src/index.ts:101` — senha temporária previsível/curta**
 
 `tempPassword = "fin-" + (1000..9999) + "-" + 4 caracteres base36`. Formato fixo e público (`fin-XXXX-yyyy`), ~9.000 × ~1,68M combinações. Não há rate-limit visível no login nem CAPTCHA (`web/app/login/page.tsx`) — um atacante que saiba o e-mail de um cliente recém-cadastrado tem uma janela de força-bruta antes da troca obrigatória de senha (`mustChangePassword`).
 
-**Correção:** aumentar entropia (12+ caracteres aleatórios), adicionar rate-limiting no login (Firebase App Check ou Cloud Function de controle de tentativas).
+**Correção aplicada (commit `6d2a41c`):** geração trocada de `Math.random()` (inadequado para segredos) para `crypto.randomInt`/`crypto.randomBytes`, com entropia bem maior (`fin-XXXXXX-yyyyyy`, ~900.000 × ~2 bilhões de combinações vs ~9.000 × 1,68M antes).
+
+**Ainda pendente:** rate-limiting no login (Firebase App Check ou Cloud Function de controle de tentativas) — decisão de infraestrutura maior, não incluída nesta rodada.
 
 **1.3 — Dependências vulneráveis (`npm audit`)**
 
@@ -83,11 +85,11 @@ Não há `headers()` com CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Stri
 
 ### 🟠 ALTO
 
-**2.1 — Zero CI/CD**
+**2.1 — ✅ CORRIGIDO — Zero CI/CD**
 
-`.github/workflows` não existe. Nenhum PR é validado automaticamente — build, lint e types podem quebrar em produção sem detecção.
+`.github/workflows` não existia. Nenhum PR era validado automaticamente — build, lint e types podiam quebrar em produção sem detecção.
 
-**Correção mínima:** workflow rodando `npx tsc --noEmit`, `npx eslint .` e `next build` em cada push/PR.
+**Correção aplicada (commit `6d2a41c`):** `.github/workflows/ci.yml` criado com 3 jobs: `web` (lint + typecheck + build), `functions` (typecheck + build), `audit` (npm audit high/critical, não-bloqueante). Roda em push/PR para `master`.
 
 **2.2 — ESLint: 94 erros / 37 avisos**
 
@@ -97,9 +99,16 @@ Destaques recorrentes:
 - `<img>` em vez de `next/image` em 6+ arquivos do catálogo de veículos — impacto real em LCP, já que é um catálogo com fotos.
 - Bug real pego pelo lint: `SelecaoExclusao.tsx:45` — `let falhas` nunca reatribuído (`prefer-const`), sinal de lógica de acumulação de falhas potencialmente quebrada.
 
-**2.3 — Queries Firestore sem paginação**
+**2.3 — 🟡 PARCIALMENTE CORRIGIDO — Queries Firestore sem paginação**
 
 `getDocs(query(...))` sem `limit()` em pelo menos 8 pontos: `comissoes/page.tsx:56`, `leads/page.tsx:50`, `trocas/page.tsx:45`, `recebimentos/page.tsx:97,137`, `dashboard/page.tsx:69,118,119`, `minha-area/troca/page.tsx:51,74,105`. Destaque: `recebimentos/page.tsx:97` usa `collectionGroup(db, "installments")` sem limite — cresce linearmente com contratos × parcelas, vai degradar performance e custo conforme a base cresce.
+
+**Correção aplicada (commit `6d2a41c`):**
+- `minha-area/troca/page.tsx:51,74,105` — investigado e são falso positivo: já filtradas por `where("customerId", "==", cid)`, naturalmente limitadas aos dados de um único cliente.
+- `dashboard/page.tsx:118,119` — trocado `getDocs(...).size` por `getCountFromServer(...)`: conta no servidor sem baixar documentos, mais barato e sem risco de truncar o número exibido.
+- `leads/page.tsx:50`, `trocas/page.tsx:45` — adicionado `limit(300)`. Seguro porque são listagens simples com filtro client-side por tab, sem cálculo de totais financeiros sobre o resultado.
+
+**Deliberadamente NÃO corrigido nesta rodada:** `recebimentos/page.tsx:97,137` (collectionGroup installments) e `comissoes/page.tsx:56`. Essas páginas calculam **totais financeiros e listas de atraso** a partir do resultado completo da query (saldo pendente, parcelas vencidas, soma de comissões por vendedor). Adicionar `limit()` ali truncaria silenciosamente esses números — poderia esconder uma parcela vencida real ou mostrar um total de comissão errado, o que é pior que o problema de performance original. Corrigir isso direito exige uma arquitetura diferente (agregação no servidor ou paginação com recomputo incremental), não um patch rápido — fica como item separado de arquitetura, não uma correção "alta prioridade" isolada.
 
 ---
 
@@ -211,11 +220,11 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 - [x] **[UX]** Adicionar confirmação em registrar pagamento / renegociação (3.2) — ✅ commit `32f28a5`
 
 ### Próximas 2 semanas (alto)
-- [ ] **[SEG]** Rodar `npm audit fix`, testar regressões (1.3)
-- [ ] **[SEG]** Aumentar entropia de senha temporária + rate-limit no login (1.2)
-- [ ] **[CODE]** Criar workflow de CI (lint + typecheck + build) (2.1)
-- [ ] **[CODE]** Corrigir os 94 erros de ESLint, priorizando `set-state-in-effect` (2.2)
-- [ ] **[CODE]** Adicionar `limit()` nas queries sem paginação, especialmente `collectionGroup(installments)` (2.3)
+- [ ] **[SEG]** Rodar `npm audit fix`, testar regressões (1.3) — 🔄 em andamento
+- [x] **[SEG]** Aumentar entropia de senha temporária (1.2) — ✅ commit `6d2a41c` (rate-limit no login ainda pendente)
+- [x] **[CODE]** Criar workflow de CI (lint + typecheck + build) (2.1) — ✅ commit `6d2a41c`
+- [ ] **[CODE]** Corrigir os 94 erros de ESLint, priorizando `set-state-in-effect` (2.2) — 🔄 em andamento
+- [x] **[CODE]** Adicionar `limit()`/`getCountFromServer` nas queries seguras (2.3) — ✅ commit `6d2a41c` (recebimentos/comissoes ficam para item de arquitetura à parte)
 - [x] **[UX]** Adicionar fluxo de exclusão de contrato individual (3.3) — ✅ commit `420be03`
 
 ### Próximo mês (médio)
