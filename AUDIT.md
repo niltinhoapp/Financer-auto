@@ -149,11 +149,11 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 
 ### 🔴 CRÍTICO (bloqueia uso)
 
-**3.1 — Toggle switches inacessíveis por teclado**
+**3.1 — ✅ CORRIGIDO — Toggle switches inacessíveis por teclado**
 
-`contratos/novo/page.tsx:297-313, 382-397, 521-532` — "switches" são `<div onClick>` dentro de `<label>`, não `<input type="checkbox">` real. Não são focáveis, `Enter`/`Space` não ativam. **Usuário de teclado não consegue preencher o formulário de contrato.**
+`contratos/novo/page.tsx:297-313, 382-397, 521-532` — "switches" eram `<div onClick>` dentro de `<label>`, não `<input type="checkbox">` real. Não eram focáveis, `Enter`/`Space` não ativavam.
 
-**Correção:** `<input type="checkbox" className="sr-only peer">` real com `peer-checked`, ou Radix Switch.
+**Correção aplicada (commit `70e216d`):** os 3 toggles (`docsOverride`, `modoManual`, `tradeIn.ativo`) agora usam `<input type="checkbox" role="switch" className="sr-only peer">` real, focável via Tab, ativável via Space/Enter, com anel de foco visível via `peer-focus-visible`. Visual mantido idêntico.
 
 **3.2 — Ações financeiras destrutivas sem confirmação**
 
@@ -203,7 +203,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 
 ### Esta semana (crítico)
 - [x] **[SEG]** Corrigir `registerPayment` — adicionar checagem de role (1.1) — ✅ commit `91248dd`
-- [ ] **[UX]** Corrigir toggles inacessíveis em `contratos/novo` (3.1)
+- [x] **[UX]** Corrigir toggles inacessíveis em `contratos/novo` (3.1) — ✅ commit `70e216d`
 - [ ] **[UX]** Adicionar confirmação em registrar pagamento / renegociação (3.2)
 
 ### Próximas 2 semanas (alto)
