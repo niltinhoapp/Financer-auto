@@ -14,7 +14,7 @@
 | Código/Arquitetura | 0 | 3 | 5 | 3 |
 | UI/UX & Acessibilidade | 3 | 7 | 4 | — |
 
-**Achado mais urgente:** uma Cloud Function (`registerPayment`) permite que **qualquer usuário autenticado — inclusive um cliente — marque parcelas de qualquer contrato como pagas**, sem checar role nem posse do contrato. Corrigir antes de qualquer outra coisa.
+**Status:** ✅ Todos os 4 achados críticos (1.1, 3.1, 3.2, 3.3) já foram corrigidos — ver detalhes em cada seção e o checklist no plano de ação.
 
 ---
 
@@ -155,13 +155,17 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 
 **Correção aplicada (commit `70e216d`):** os 3 toggles (`docsOverride`, `modoManual`, `tradeIn.ativo`) agora usam `<input type="checkbox" role="switch" className="sr-only peer">` real, focável via Tab, ativável via Space/Enter, com anel de foco visível via `peer-focus-visible`. Visual mantido idêntico.
 
-**3.2 — Ações financeiras destrutivas sem confirmação**
+**3.2 — ✅ CORRIGIDO — Ações financeiras destrutivas sem confirmação**
 
-`contratos/[id]/page.tsx:608-613` (registrar pagamento, pode quitar contrato) e `:688-694` (confirmar renegociação, altera parcelas permanentemente) executam direto no clique, sem modal. Um clique acidental altera dados financeiros permanentemente.
+`contratos/[id]/page.tsx:608-613` (registrar pagamento, pode quitar contrato) e `:688-694` (confirmar renegociação, altera parcelas permanentemente) executavam direto no clique, sem confirmação. Um clique acidental alterava dados financeiros permanentemente.
 
-**3.3 — Sem opção de cancelar/excluir contrato na tela de detalhe**
+**Correção aplicada (commit `32f28a5`):** ambas as ações agora exigem um segundo clique explícito ("Sim, confirmar") mostrando o valor/quantidade exata antes de gravar no Firestore. A renegociação também valida o formulário antes de permitir a confirmação.
 
-`contratos/[id]/page.tsx` (975 linhas) não tem fluxo de exclusão individual — só existe exclusão em massa na listagem. Contraste com `clientes/[id]/page.tsx:681-709`, que tem fluxo bem feito em dois passos.
+**3.3 — ✅ CORRIGIDO — Sem opção de cancelar/excluir contrato na tela de detalhe**
+
+`contratos/[id]/page.tsx` (975 linhas) não tinha fluxo de exclusão individual — só existia exclusão em massa na listagem. Contraste com `clientes/[id]/page.tsx:681-709`, que tem fluxo bem feito em dois passos.
+
+**Correção aplicada (commit `420be03`):** adicionada seção "Zona de perigo" (admin-only) na tela de detalhe do contrato, replicando o padrão de confirmação em dois passos já usado em clientes, com aviso se houver parcelas pagas.
 
 ---
 
@@ -204,7 +208,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 ### Esta semana (crítico)
 - [x] **[SEG]** Corrigir `registerPayment` — adicionar checagem de role (1.1) — ✅ commit `91248dd`
 - [x] **[UX]** Corrigir toggles inacessíveis em `contratos/novo` (3.1) — ✅ commit `70e216d`
-- [ ] **[UX]** Adicionar confirmação em registrar pagamento / renegociação (3.2)
+- [x] **[UX]** Adicionar confirmação em registrar pagamento / renegociação (3.2) — ✅ commit `32f28a5`
 
 ### Próximas 2 semanas (alto)
 - [ ] **[SEG]** Rodar `npm audit fix`, testar regressões (1.3)
@@ -212,7 +216,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 - [ ] **[CODE]** Criar workflow de CI (lint + typecheck + build) (2.1)
 - [ ] **[CODE]** Corrigir os 94 erros de ESLint, priorizando `set-state-in-effect` (2.2)
 - [ ] **[CODE]** Adicionar `limit()` nas queries sem paginação, especialmente `collectionGroup(installments)` (2.3)
-- [ ] **[UX]** Adicionar fluxo de exclusão de contrato individual (3.3)
+- [x] **[UX]** Adicionar fluxo de exclusão de contrato individual (3.3) — ✅ commit `420be03`
 
 ### Próximo mês (médio)
 - [ ] Restringir `create` em `audit/` a admin/seller (1.4)
