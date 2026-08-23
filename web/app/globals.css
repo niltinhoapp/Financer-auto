@@ -1,33 +1,268 @@
 @import "tailwindcss";
 
+/* ─── Design Tokens ─────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Cores base — Light */
+  --bg-primary:   #f8fafc;
+  --bg-card:      #ffffff;
+  --bg-sidebar:   #0f172a;
+  --bg-hover:     #f1f5f9;
+  --bg-input:     #ffffff;
+
+  --text-primary:   #0f172a;
+  --text-secondary: #64748b;
+  --text-muted:     #94a3b8;
+  --text-inverse:   #ffffff;
+
+  --border:       #e2e8f0;
+  --border-focus: #3b82f6;
+
+  --accent:       #3b82f6;
+  --accent-dark:  #2563eb;
+  --accent-light: #eff6ff;
+  --accent-gradient: linear-gradient(135deg, #2563eb, #6366f1);
+  --accent-shadow: 0 8px 20px -6px rgba(37,99,235,.45);
+
+  --success:      #10b981;
+  --success-light:#ecfdf5;
+  --warning:      #f59e0b;
+  --warning-light:#fffbeb;
+  --danger:       #ef4444;
+  --danger-light: #fef2f2;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
+
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --bg-primary:   #0b1120;
+  --bg-card:      #141c2e;
+  --bg-sidebar:   #080e1a;
+  --bg-hover:     #1a2540;
+  --bg-input:     #1e2a42;
+
+  --text-primary:   #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+  --text-inverse:   #0f172a;
+
+  --border:       #1e2d4a;
+  --border-focus: #60a5fa;
+
+  --accent:       #60a5fa;
+  --accent-dark:  #3b82f6;
+  --accent-light: #1e2d4a;
+  --accent-gradient: linear-gradient(135deg, #3b82f6, #818cf8);
+  --accent-shadow: 0 8px 24px -6px rgba(96,165,250,.35);
+
+  --success:      #34d399;
+  --success-light:#0f2a22;
+  --warning:      #fbbf24;
+  --warning-light:#2e2410;
+  --danger:       #f87171;
+  --danger-light: #2e1517;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+
+  color-scheme: dark;
 }
+
+/* ─── Base ───────────────────────────────────────────────────── */
+* { transition: background-color .15s ease, border-color .15s ease, color .1s ease; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
 }
 
-/* Força tema claro nos campos de formulário, independente do esquema do SO/navegador */
+/* ─── Compatibilidade de tema escuro para telas legadas ──────────
+   Algumas telas usam classes fixas do Tailwind (bg-white, text-gray-*,
+   border-gray-*). No tema escuro isso ficaria ilegível. Remapeamos
+   essas classes para as variáveis do tema quando .dark está ativo,
+   corrigindo todas as telas de uma vez, sem reescrever cada uma.   */
+.dark .bg-white { background-color: var(--bg-card) !important; }
+.dark .bg-gray-50 { background-color: var(--bg-hover) !important; }
+.dark .bg-gray-100 { background-color: var(--bg-hover) !important; }
+.dark .text-gray-900 { color: var(--text-primary) !important; }
+.dark .text-gray-800 { color: var(--text-primary) !important; }
+.dark .text-gray-700 { color: var(--text-secondary) !important; }
+.dark .text-gray-600 { color: var(--text-secondary) !important; }
+.dark .text-gray-500 { color: var(--text-muted) !important; }
+.dark .text-gray-400 { color: var(--text-muted) !important; }
+.dark .border-gray-200 { border-color: var(--border) !important; }
+.dark .border-gray-300 { border-color: var(--border) !important; }
+.dark .border-gray-100 { border-color: var(--border) !important; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border) !important; }
+.dark .hover\:bg-gray-50:hover { background-color: var(--bg-hover) !important; }
+.dark .hover\:bg-gray-100:hover { background-color: var(--bg-hover) !important; }
+/* inputs com borda fixa no tema escuro */
+.dark .bg-gray-50.border-gray-300,
+.dark input.border-gray-300, .dark select.border-gray-300, .dark textarea.border-gray-300 {
+  background-color: var(--bg-input) !important;
+}
+
+/* ─── Legibilidade — tamanhos mínimos e contraste ────────────────
+   Muitas telas usam text-xs (12px) e text-[10px] para rótulos.
+   Em telas pequenas isso fica ilegível. Definimos um piso de
+   tamanho e melhoramos o contraste de texto secundário/mudo.   */
+:root {
+  --text-secondary: #54637a;
+  --text-muted:     #7c8aa0;
+}
+.dark {
+  --text-secondary: #a8b6cc;
+  --text-muted:     #7e8db0;
+}
+
+.text-xs   { font-size: 0.8125rem !important; line-height: 1.4 !important; }   /* 13px (era 12px) */
+.text-\[10px\],
+.text-\[11px\] { font-size: 0.75rem !important; line-height: 1.4 !important; } /* 12px piso */
+.text-sm   { font-size: 0.9375rem !important; line-height: 1.5 !important; }   /* 15px (era 14px) */
+
+/* Ícones: tamanho mínimo para toque/leitura confortável */
+svg.lucide { stroke-width: 2; }
+
+/* ─── Inputs — always readable ───────────────────────────────── */
 input,
 select,
 textarea {
-  color: #111827; /* gray-900 */
-  background-color: #ffffff;
-  color-scheme: light;
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--border-focus) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #9ca3af; /* gray-400 */
+  color: var(--text-muted) !important;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Seleção de texto ───────────────────────────────────────── */
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+
+/* ─── Foco visível (acessibilidade) ─────────────────────────────── */
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: .375rem;
+}
+
+/* ─── Utility classes ─────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .2s ease, border-color .2s ease, transform .15s ease;
+}
+
+a.card:hover, button.card:hover, .card-hover:hover {
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+.input-base {
+  width: 100%;
+  padding: .6rem .75rem;
+  min-height: 2.75rem; /* 44px — alvo de toque confortável */
+  border: 1px solid var(--border);
+  border-radius: .625rem;
+  font-size: .9375rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.btn-primary {
+  background: var(--accent-gradient);
+  color: #fff;
+  border-radius: .625rem;
+  font-weight: 600;
+  font-size: .9375rem;
+  padding: .65rem 1.25rem;
+  min-height: 2.75rem;
+  box-shadow: var(--accent-shadow);
+  transition: filter .15s, transform .1s, box-shadow .15s;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+.btn-secondary {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: .625rem;
+  font-weight: 600;
+  font-size: .9375rem;
+  padding: .6rem 1.2rem;
+  min-height: 2.75rem;
+  transition: background .15s, color .15s, border-color .15s, transform .1s;
+}
+.btn-secondary:hover { background: var(--bg-card); color: var(--text-primary); border-color: var(--accent); }
+.btn-secondary:active { transform: scale(.98); }
+
+/* ─── Badges de status — tons suaves e consistentes ─────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.badge-success { background: var(--success-light); color: var(--success); }
+.badge-warning { background: var(--warning-light); color: var(--warning); }
+.badge-danger  { background: var(--danger-light);  color: var(--danger); }
+.badge-accent  { background: var(--accent-light);  color: var(--accent); }
+
+/* ─── Animações — toast e skeleton ──────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-toast-in { animation: toast-in .2s ease-out; }
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .45; }
+}
+.skeleton {
+  background: var(--bg-hover);
+  border-radius: .5rem;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+/* ─── Mobile: alvos de toque maiores em botões/links de ação ────── */
+@media (max-width: 768px) {
+  button, a.btn-primary, a.btn-secondary {
+    min-height: 2.75rem;
+  }
 }
