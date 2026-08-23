@@ -29,6 +29,15 @@ export function formatPhone(phone: string): string {
   return digits.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
 }
 
+/** Máscara progressiva de telefone para digitação: (00) 00000-0000 */
+export function maskPhone(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
 export function formatPlate(plate: string): string {
   return plate.toUpperCase();
 }

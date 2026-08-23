@@ -17,7 +17,7 @@ import { formatCPF, formatCurrency, formatDate, formatPhone } from "@/lib/utils"
 export interface ContractTemplateData {
   contract: Contract;
   customer: Customer;
-  vehicle: Vehicle;
+  vehicle: Vehicle | null;
   sellerName: string;
   companyName?: string;
   companyCnpj?: string;
@@ -59,14 +59,14 @@ têm entre si, justo e contratado, o que se segue:
 
 CLÁUSULA 1ª — DO OBJETO
 1.1. O presente contrato tem como objeto a compra e venda do veículo abaixo descrito ("VEÍCULO"):
-   • Tipo: ${vehicle.type === "car" ? "Automóvel" : vehicle.type === "motorcycle" ? "Motocicleta" : vehicle.type === "truck" ? "Caminhão" : "Utilitário"}
-   • Marca/Modelo: ${vehicle.brand} ${vehicle.model}
-   • Ano: ${vehicle.year}
-   • Cor: ${vehicle.color}
-   • Placa: ${vehicle.plate.toUpperCase()}
-   • Chassi: ${vehicle.chassis || "[não informado]"}
-   • Quilometragem na data da venda: ${vehicle.mileage.toLocaleString("pt-BR")} km
-${vehicle.features ? `   • Itens/observações: ${vehicle.features}\n` : ""}
+   • Tipo: ${vehicle ? (vehicle.type === "car" ? "Automóvel" : vehicle.type === "motorcycle" ? "Motocicleta" : vehicle.type === "truck" ? "Caminhão" : "Utilitário") : "[não informado]"}
+   • Marca/Modelo: ${vehicle ? `${vehicle.brand} ${vehicle.model}` : "[não informado]"}
+   • Ano: ${vehicle?.year ?? "[não informado]"}
+   • Cor: ${vehicle?.color ?? "[não informado]"}
+   • Placa: ${vehicle ? vehicle.plate.toUpperCase() : "[não informado]"}
+   • Chassi: ${vehicle?.chassis || "[não informado]"}
+   • Quilometragem na data da venda: ${vehicle ? vehicle.mileage.toLocaleString("pt-BR") : "0"} km
+${vehicle?.features ? `   • Itens/observações: ${vehicle.features}\n` : ""}
 1.2. O(A) COMPRADOR(A) declara ter vistoriado o VEÍCULO previamente à assinatura deste instrumento, recebendo-o no estado em que se encontra, ciente de suas condições mecânicas, elétricas e estéticas, nada tendo a reclamar a esse respeito posteriormente, salvo vícios ocultos não detectáveis em vistoria comum.
 
 CLÁUSULA 2ª — DO PREÇO E DA FORMA DE PAGAMENTO

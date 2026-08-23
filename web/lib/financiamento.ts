@@ -43,6 +43,32 @@ export function gerarCronograma(params: FinanciamentoParams): Parcela[] {
   return parcelas;
 }
 
+/**
+ * Gera o cronograma de um acordo "manual": entrada + N parcelas de valor
+ * fixo definido pelo vendedor (sem cálculo de juros). Útil para negócios
+ * combinados diretamente com o cliente, ex: "3 mil de entrada + 30x de 400".
+ */
+export function gerarCronogramaManual(
+  valorParcela: number,
+  numeroParcelas: number,
+  primeiroVencimento: string
+): Parcela[] {
+  const parcelas: Parcela[] = [];
+  const base = new Date(primeiroVencimento + "T00:00:00");
+
+  for (let i = 0; i < numeroParcelas; i++) {
+    const venc = new Date(base);
+    venc.setMonth(venc.getMonth() + i);
+    parcelas.push({
+      numero: i + 1,
+      vencimento: venc.toISOString().split("T")[0],
+      valor: Math.round(valorParcela * 100) / 100,
+    });
+  }
+
+  return parcelas;
+}
+
 export function calcularValorAtualizado(
   valorOriginal: number,
   diasAtraso: number,
