@@ -120,9 +120,11 @@ Destaques recorrentes:
 
 ### 🟡 MÉDIO
 
-**2.4 — Tratamento de erro inconsistente**
+**2.4 — ✅ CORRIGIDO — Tratamento de erro inconsistente**
 
-Só 7 de ~17 páginas do painel têm `catch` visível nas funções de carregamento. Nas demais, exceção sobe sem tratamento (tela em branco/loading infinito) ou só há `console.error` sem feedback ao usuário.
+Só 7 de ~17 páginas do painel tinham `catch` visível nas funções de carregamento. Nas demais, exceção subia sem tratamento (tela em branco/loading infinito) ou só havia `console.error` sem feedback ao usuário.
+
+**Correção aplicada (commit `b4b5de7`):** padronizado `try/catch/finally` com `console.error` + `Sentry.captureException` + `toast` em 20 arquivos rastreados (listas, detalhes, portal do cliente e ações secundárias como salvar/excluir/gerar PDF/upload que já tinham catch mas não reportavam). Nenhuma lógica de fetch foi alterada — só o wrapping de erro. `comissoes/financeiro/inadimplencia/oficinas/relatorios/configuracoes/auditoria` corrigidos no disco, aguardam commit junto da feature ainda não commitada.
 
 **2.5 — ✅ CORRIGIDO — Duplicação de formatação de moeda**
 
@@ -146,9 +148,11 @@ Recomenda-se extrair subcomponentes e hooks de dados (`useContrato`, `useCliente
 
 Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts` (juros compostos, multa/juros de atraso — dinheiro real) e geração de cronograma/contrato — são funções puras, fáceis de testar.
 
-**2.8 — Erros não chegam ao Sentry**
+**2.8 — ✅ CORRIGIDO — Erros não chegam ao Sentry**
 
-`@sentry/nextjs` já está configurado, mas erros capturados em `catch` só vão pro `console`, não são reportados explicitamente ao Sentry.
+`@sentry/nextjs` já estava configurado, mas erros capturados em `catch` só iam pro `console`, não eram reportados explicitamente ao Sentry — `Sentry.captureException` só era chamado em `app/global-error.tsx` (erros não capturados).
+
+**Correção aplicada (commit `b4b5de7`):** `Sentry.captureException(e)` adicionado em todos os catches junto com a padronização do item 2.4.
 
 ---
 
@@ -238,7 +242,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 ### Próximo mês (médio)
 - [x] Restringir `create` em `audit/` a admin/seller (1.4) — ✅ commit `b1e8272`
 - [x] Adicionar headers de segurança no `next.config.ts` (1.6) — ✅ commit `b1e8272` (CSP completa fica de follow-up)
-- [ ] Padronizar tratamento de erro com toast + Sentry (2.4, 2.8)
+- [x] Padronizar tratamento de erro com toast + Sentry (2.4, 2.8) — ✅ commit `b4b5de7`
 - [x] Consolidar `formatCurrency()` nos arquivos duplicados (2.5) — ✅ commit `e8deeae`
 - [ ] Migrar formulários pra `react-hook-form` + `zod` (3.4)
 - [x] Adicionar scroll/cards mobile em `contratos` (3.6) — ✅ commit `e87c1ea`
