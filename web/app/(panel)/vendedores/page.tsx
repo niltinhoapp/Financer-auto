@@ -41,7 +41,9 @@ export default function VendedoresPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    Promise.resolve().then(() => load());
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

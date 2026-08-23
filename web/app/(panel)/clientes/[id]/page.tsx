@@ -72,16 +72,6 @@ export default function ClienteDetailPage() {
   const [restrictionReason, setRestrictionReason] = useState("");
   const [savingRestriction, setSavingRestriction] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    Promise.all([getCustomer(id), getContracts({ customerId: id })]).then(([c, ct]) => {
-      setCustomer(c);
-      setContracts(ct);
-      setLoading(false);
-    });
-    loadDocs();
-  }, [id]);
-
   async function loadDocs() {
     if (!id) return;
     setLoadingDocs(true);
@@ -92,6 +82,16 @@ export default function ClienteDetailPage() {
       setLoadingDocs(false);
     }
   }
+
+  useEffect(() => {
+    if (!id) return;
+    Promise.all([getCustomer(id), getContracts({ customerId: id })]).then(([c, ct]) => {
+      setCustomer(c);
+      setContracts(ct);
+      setLoading(false);
+    });
+    Promise.resolve().then(() => loadDocs());
+  }, [id]);
 
   async function handleDocAction(tipo: string, action: "approved" | "rejected") {
     if (!id) return;
@@ -123,9 +123,12 @@ export default function ClienteDetailPage() {
         email: customer.email,
         name: customer.name,
       });
-      setAccessResult({ resetLink: res.data.resetLink, tempPassword: (res.data as any).tempPassword });
-    } catch (e: any) {
-      setAccessError(e?.message ?? "Erro ao gerar acesso. Tente novamente.");
+      setAccessResult({
+        resetLink: res.data.resetLink,
+        tempPassword: (res.data as { resetLink: string; tempPassword?: string }).tempPassword,
+      });
+    } catch (e) {
+      setAccessError(e instanceof Error ? e.message : "Erro ao gerar acesso. Tente novamente.");
     } finally {
       setGenerating(false);
     }
@@ -204,7 +207,7 @@ export default function ClienteDetailPage() {
         restrictionReason: restrictionReason.trim(),
         restrictedBy: user.uid,
         restrictedAt: new Date().toISOString(),
-      } as any);
+      });
       registrarAuditoria("cliente_restrito",
         `Bloqueou (restrição interna) ${customer.name} — ${restrictionReason.trim()}`,
         user, { tipo: "cliente", id: customer.id });
@@ -224,7 +227,7 @@ export default function ClienteDetailPage() {
       await updateCustomer(customer.id, {
         restricted: false,
         restrictionReason: "",
-      } as any);
+      });
       const updated = await getCustomer(customer.id);
       setCustomer(updated);
     } finally {
@@ -693,8 +696,8 @@ export default function ClienteDetailPage() {
                       await excluirClienteFn({ customerId: id });
                       toast("Cliente excluído.", "success");
                       router.replace("/clientes");
-                    } catch (e: any) {
-                      toast(e?.message ?? "Erro ao excluir cliente.", "error");
+                    } catch (e) {
+                      toast(e instanceof Error ? e.message : "Erro ao excluir cliente.", "error");
                       setDeleting(false);
                       setConfirmDelete(false);
                     }

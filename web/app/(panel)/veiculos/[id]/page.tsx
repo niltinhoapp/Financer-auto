@@ -62,8 +62,8 @@ export default function VeiculoDetailPage() {
       await excluirVeiculoFn({ vehicleId: vehicle.id });
       toast("Veículo excluído.", "success");
       router.replace("/veiculos");
-    } catch (e: any) {
-      toast(e?.message ?? "Erro ao excluir veículo.", "error");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Erro ao excluir veículo.", "error");
       setDeleting(false);
       setConfirmDelete(false);
     }
@@ -76,7 +76,9 @@ export default function VeiculoDetailPage() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    Promise.resolve().then(() => load());
+  }, [id]);
 
   async function handleStatusChange(status: VehicleStatus) {
     if (!vehicle) return;

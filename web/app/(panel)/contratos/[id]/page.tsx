@@ -162,7 +162,9 @@ export default function ContratoDetailPage() {
     return workshops.find((w) => w.id === wid)?.name ?? "—";
   }
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    Promise.resolve().then(() => load());
+  }, [id]);
 
   async function registerPayment(installment: Installment) {
     if (!contract || !user) return;
@@ -311,7 +313,7 @@ export default function ContratoDetailPage() {
         multa: contract.penaltyRate,
         jurosDiario: contract.dailyInterestRate,
         primeiroVencimento: contract.firstDueDate,
-        tradeIn: (contract as any).tradeIn,
+        tradeIn: contract.tradeIn,
         cronograma: installments.map((i) => ({
           numero: i.number,
           vencimento: i.dueDate,
@@ -336,7 +338,13 @@ export default function ContratoDetailPage() {
     if (!contract || !customer) return;
     try {
       const empresaSnap = await getDoc(doc(db, "config", "empresa"));
-      const empresa = empresaSnap.exists() ? (empresaSnap.data() as any) : {};
+      const empresa = empresaSnap.exists()
+        ? (empresaSnap.data() as {
+            address?: string;
+            companyName?: string;
+            cnpj?: string;
+          })
+        : ({} as { address?: string; companyName?: string; cnpj?: string });
 
       const pendentes = installments.filter((i) => i.status !== "paid" && i.status !== "renegotiated");
       const lista = pendentes.length > 0 ? pendentes : installments;

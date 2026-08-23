@@ -48,7 +48,7 @@ export default function ContratosPage() {
   }
 
   useEffect(() => {
-    if (user) load();
+    if (user) Promise.resolve().then(() => load());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 

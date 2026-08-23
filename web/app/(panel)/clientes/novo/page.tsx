@@ -32,6 +32,10 @@ const inputCls = (error?: string) =>
     error ? "border-red-400 bg-red-50" : "border-gray-300"
   }`;
 
+// Data máxima para nascimento (18 anos atrás) — calculada uma única vez ao carregar o módulo,
+// não a cada render, para evitar chamar Date.now() de forma impura durante a renderização.
+const MAX_BIRTH_DATE = new Date(Date.now() - 18 * 365.25 * 86400000).toISOString().split("T")[0];
+
 function NovoClienteForm() {
   const router = useRouter();
   const { user } = useAuth();
@@ -238,7 +242,7 @@ function NovoClienteForm() {
                 value={form.birthDate}
                 onChange={(e) => set("birthDate", e.target.value)}
                 className={inputCls(errors.birthDate)}
-                max={new Date(Date.now() - 18 * 365.25 * 86400000).toISOString().split("T")[0]}
+                max={MAX_BIRTH_DATE}
               />
             </Field>
 

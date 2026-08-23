@@ -15,7 +15,7 @@ export interface ReceitaItem {
 export function entradasComoReceitas(contracts: Contract[]): ReceitaItem[] {
   const result: ReceitaItem[] = [];
   for (const c of contracts) {
-    const tradeInValor = (c as any).tradeIn?.valor ?? 0;
+    const tradeInValor = c.tradeIn?.valor ?? 0;
     const entradaDinheiro = (c.downPayment ?? 0) - tradeInValor;
     if (entradaDinheiro > 0 && c.createdAt) {
       result.push({

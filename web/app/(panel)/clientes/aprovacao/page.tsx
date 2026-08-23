@@ -30,7 +30,9 @@ export default function AprovacaoClientesPage() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, [tab]);
+  useEffect(() => {
+    Promise.resolve().then(() => load());
+  }, [tab]);
 
   async function handleApproval(id: string, approved: boolean) {
     if (!user) return;
@@ -123,7 +125,7 @@ export default function AprovacaoClientesPage() {
                   {c.approvalNote && (
                     <div className="col-span-2">
                       <p className="text-xs text-gray-500">Observação</p>
-                      <p className="text-gray-600 italic">"{c.approvalNote}"</p>
+                      <p className="text-gray-600 italic">&quot;{c.approvalNote}&quot;</p>
                     </div>
                   )}
                 </div>

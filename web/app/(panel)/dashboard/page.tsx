@@ -5,6 +5,7 @@ import { collection, getDocs, query, orderBy, limit, where, collectionGroup, get
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/utils";
 import { todasReceitas } from "@/lib/receitas";
+import type { Contract } from "@financer-auto/shared";
 import Link from "next/link";
 import {
   DollarSign, FileText, Users, Car, TrendingUp, AlertTriangle,
@@ -34,6 +35,36 @@ interface KPIs {
 
 interface MonthData { month: string; value: number; }
 interface PieData { name: string; value: number; color: string; }
+
+interface ResumoStats {
+  activeContracts?: number;
+  totalContracts?: number;
+  totalReceivable?: number;
+  totalReceived?: number;
+  overdueInstallments?: number;
+  overdueValue?: number;
+  openBalance?: number;
+  totalCustomers?: number;
+  availableVehicles?: number;
+  soldVehicles?: number;
+  salesThisMonth?: number;
+  revenueThisMonth?: number;
+  pendingRequests?: number;
+  newLeads?: number;
+  revenueByMonth?: { ym: string; value: number }[];
+  contractsByStatus?: Record<string, number>;
+  vehiclesByStatus?: Record<string, number>;
+}
+
+interface RawContract {
+  id: string;
+  status?: string;
+  financedAmount?: number;
+  createdAt?: string | { toDate?: () => Date };
+}
+interface RawVehicle { status?: string; }
+interface RawPayment { amount?: number; paidAt?: string; }
+interface RawInstallment { status?: string; dueDate?: string; value?: number; }
 
 const MONTHS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
@@ -67,7 +98,7 @@ export default function DashboardPage() {
         // ── Caminho rápido: lê o agregado pré-calculado (stats/resumo) ──
         try {
           const statsSnap = await getDocs(query(collection(db, "stats")));
-          const resumo = statsSnap.docs.find((d) => d.id === "resumo")?.data() as any;
+          const resumo = statsSnap.docs.find((d) => d.id === "resumo")?.data() as ResumoStats | undefined;
           if (resumo) {
             setKpis({
               activeContracts: resumo.activeContracts ?? 0,
@@ -85,7 +116,7 @@ export default function DashboardPage() {
               pendingRequests: resumo.pendingRequests ?? 0,
               newLeads: resumo.newLeads ?? 0,
             });
-            setRevenueChart((resumo.revenueByMonth ?? []).map((m: any) => ({
+            setRevenueChart((resumo.revenueByMonth ?? []).map((m) => ({
               month: MONTHS_PT[parseInt(m.ym.split("-")[1]) - 1],
               value: m.value,
             })));
@@ -123,42 +154,52 @@ export default function DashboardPage() {
         results.forEach((r, i) => {
           if (r.status === "rejected") console.error(`Dashboard: consulta ${i} falhou:`, r.reason);
         });
-        const docsOf = (i: number) => (results[i].status === "fulfilled" ? (results[i] as any).value.docs : []);
-        const sizeOf = (i: number) => (results[i].status === "fulfilled" ? (results[i] as any).value.size : 0);
-        const countOf = (i: number) => (results[i].status === "fulfilled" ? (results[i] as any).value.data().count : 0);
+        const docsOf = (i: number) =>
+          results[i].status === "fulfilled"
+            ? (results[i] as PromiseFulfilledResult<{ docs: { id: string; data: () => unknown }[] }>).value.docs
+            : [];
+        const sizeOf = (i: number) =>
+          results[i].status === "fulfilled"
+            ? (results[i] as PromiseFulfilledResult<{ size: number }>).value.size
+            : 0;
+        const countOf = (i: number) =>
+          results[i].status === "fulfilled"
+            ? (results[i] as PromiseFulfilledResult<{ data: () => { count: number } }>).value.data().count
+            : 0;
 
-        const contracts = docsOf(0).map((d: any) => ({ id: d.id, ...d.data() }));
+        const contracts = docsOf(0).map((d) => ({ id: d.id, ...(d.data() as object) })) as RawContract[];
         const customersSnap = { size: sizeOf(1) };
-        const vehicles = docsOf(2).map((d: any) => d.data());
-        const payments = docsOf(3).map((d: any) => d.data());
-        const installments = docsOf(4).map((d: any) => d.data());
+        const vehicles = docsOf(2).map((d) => d.data() as RawVehicle);
+        const payments = docsOf(3).map((d) => d.data() as RawPayment);
+        const installments = docsOf(4).map((d) => d.data() as RawInstallment);
         const reqsSnap = { size: countOf(5) };
         const leadsSnap = { size: countOf(6) };
 
         // Receitas reais = pagamentos de parcelas + entradas em dinheiro dos contratos
-        const receitas = todasReceitas(payments, contracts);
+        const receitas = todasReceitas(payments, contracts as unknown as Contract[]);
 
         // KPIs básicos
-        const activeContracts = contracts.filter((c: any) => c.status === "active").length;
-        const totalReceivable = contracts.reduce((acc: number, c: any) => acc + (c.financedAmount || 0), 0);
+        const activeContracts = contracts.filter((c) => c.status === "active").length;
+        const totalReceivable = contracts.reduce((acc, c) => acc + (c.financedAmount || 0), 0);
         const totalReceived = receitas.reduce((acc, r) => acc + r.amount, 0);
 
         const today = new Date().toISOString().split("T")[0];
         // Parcelas renegociadas foram substituídas por novas — não contam como atraso
-        const overdueInst = installments.filter((i: any) =>
-          i.status !== "paid" && i.status !== "renegotiated" && i.dueDate < today
+        const overdueInst = installments.filter((i) =>
+          i.status !== "paid" && i.status !== "renegotiated" && (i.dueDate ?? "") < today
         );
-        const overdueValue = overdueInst.reduce((acc: number, i: any) => acc + (i.value || 0), 0);
+        const overdueValue = overdueInst.reduce((acc, i) => acc + (i.value || 0), 0);
 
         // Saldo em aberto real = soma das parcelas ainda não pagas
         const openBalance = installments
-          .filter((i: any) => i.status !== "paid" && i.status !== "renegotiated")
-          .reduce((acc: number, i: any) => acc + (i.value || 0), 0);
+          .filter((i) => i.status !== "paid" && i.status !== "renegotiated")
+          .reduce((acc, i) => acc + (i.value || 0), 0);
 
         // Este mês
-        const salesThisMonth = contracts.filter((c: any) =>
-          (c.createdAt?.toDate?.()?.toISOString() ?? c.createdAt ?? "").slice(0, 7) === thisMonthKey
-        ).length;
+        const salesThisMonth = contracts.filter((c) => {
+          const created = typeof c.createdAt === "object" ? c.createdAt?.toDate?.()?.toISOString() : c.createdAt;
+          return (created ?? "").slice(0, 7) === thisMonthKey;
+        }).length;
 
         const revenueThisMonth = receitas
           .filter((r) => r.paidAt.slice(0, 7) === thisMonthKey)
@@ -173,8 +214,8 @@ export default function DashboardPage() {
           overdueValue,
           openBalance,
           totalCustomers: customersSnap.size,
-          availableVehicles: vehicles.filter((v: any) => v.status === "available").length,
-          soldVehicles: vehicles.filter((v: any) => v.status === "sold").length,
+          availableVehicles: vehicles.filter((v) => v.status === "available").length,
+          soldVehicles: vehicles.filter((v) => v.status === "sold").length,
           salesThisMonth,
           revenueThisMonth,
           pendingRequests: reqsSnap.size,
@@ -199,7 +240,8 @@ export default function DashboardPage() {
         // Gráfico pizza: contratos por status
         const cByStatus: Record<string, number> = {};
         for (const c of contracts) {
-          cByStatus[c.status] = (cByStatus[c.status] || 0) + 1;
+          const status = c.status ?? "desconhecido";
+          cByStatus[status] = (cByStatus[status] || 0) + 1;
         }
         setContractsPie([
           { name: "Ativos",      value: cByStatus["active"]       || 0, color: "#3b82f6" },
@@ -210,10 +252,10 @@ export default function DashboardPage() {
 
         // Gráfico pizza: veículos
         setVehiclesPie([
-          { name: "Disponível", value: vehicles.filter((v: any) => v.status === "available").length, color: "#10b981" },
-          { name: "Reservado",  value: vehicles.filter((v: any) => v.status === "reserved").length,  color: "#f59e0b" },
-          { name: "Vendido",    value: vehicles.filter((v: any) => v.status === "sold").length,       color: "#94a3b8" },
-          { name: "Garantia",   value: vehicles.filter((v: any) => v.status === "warranty").length,   color: "#3b82f6" },
+          { name: "Disponível", value: vehicles.filter((v) => v.status === "available").length, color: "#10b981" },
+          { name: "Reservado",  value: vehicles.filter((v) => v.status === "reserved").length,  color: "#f59e0b" },
+          { name: "Vendido",    value: vehicles.filter((v) => v.status === "sold").length,       color: "#94a3b8" },
+          { name: "Garantia",   value: vehicles.filter((v) => v.status === "warranty").length,   color: "#3b82f6" },
         ].filter((d) => d.value > 0));
 
       } catch (e) {
@@ -364,7 +406,7 @@ export default function DashboardPage() {
                 <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false}
                        tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
                 <Tooltip
-                  formatter={(v: any) => [formatCurrency(Number(v)), "Receita"]}
+                  formatter={(v: number | string | readonly (number | string)[] | undefined) => [formatCurrency(Number(v)), "Receita"]}
                   contentStyle={{
                     background: "var(--bg-card)", border: "1px solid var(--border)",
                     borderRadius: "0.5rem", fontSize: "12px", color: "var(--text-primary)",
@@ -396,7 +438,7 @@ export default function DashboardPage() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(v: any, name: any) => [v, name]}
+                  formatter={(v: number | string | readonly (number | string)[] | undefined, name: number | string | undefined) => [v, name]}
                   contentStyle={{
                     background: "var(--bg-card)", border: "1px solid var(--border)",
                     borderRadius: "0.5rem", fontSize: "12px", color: "var(--text-primary)",

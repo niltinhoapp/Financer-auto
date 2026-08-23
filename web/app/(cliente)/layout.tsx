@@ -28,7 +28,10 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
 
   // Carrega o cadastro do cliente para checar se está completo
   useEffect(() => {
-    if (!user?.customerId) { setCustomerLoading(false); return; }
+    if (!user?.customerId) {
+      Promise.resolve().then(() => setCustomerLoading(false));
+      return;
+    }
     getCustomer(user.customerId)
       .then(setCustomer)
       .finally(() => setCustomerLoading(false));

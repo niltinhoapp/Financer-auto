@@ -151,7 +151,7 @@ export default function MinhaAreaPage() {
         });
         const result = await uploadComprovanteFn({ base64, fileName: proofFile.name, customerId });
         proofUrl = result.data.url;
-        proofPath = (result.data as any).path;
+        proofPath = result.data.path;
         proofFileName = proofFile.name;
         setUploading(false);
       }

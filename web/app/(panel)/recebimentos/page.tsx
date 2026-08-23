@@ -58,6 +58,18 @@ function buildCobrancaMessage(r: InstallmentRow, valorAtualizado: number, diasAt
   );
 }
 
+interface AvisoNotification {
+  id: string;
+  status: string;
+  createdAt?: string;
+  tipo?: "cobranca" | "lembreteHoje" | "lembrete3dias" | string;
+  customerName?: string;
+  installmentNumber?: number;
+  dueDate?: string;
+  mensagem?: string;
+  phone?: string;
+}
+
 interface RegisterModal {
   contractId: string;
   installmentId: string;
@@ -77,7 +89,7 @@ export default function RecebimentosPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"pending" | "overdue" | "paid" | "requests" | "avisos">("requests");
   const [search, setSearch] = useState("");
-  const [avisos, setAvisos] = useState<any[]>([]);
+  const [avisos, setAvisos] = useState<AvisoNotification[]>([]);
   const [loadingAvisos, setLoadingAvisos] = useState(false);
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [loadingReqs, setLoadingReqs] = useState(true);
@@ -99,16 +111,19 @@ export default function RecebimentosPage() {
       getDocs(collection(db, "customers")),
     ]);
 
-    const customerById: Record<string, any> = {};
+    const customerById: Record<string, { name?: string; phone?: string }> = {};
     customersSnap.docs.forEach((d) => { customerById[d.id] = d.data(); });
 
-    const contractById: Record<string, any> = {};
+    const contractById: Record<
+      string,
+      { customerId?: string; penaltyRate?: number; dailyInterestRate?: number }
+    > = {};
     contractsSnap.docs.forEach((d) => { contractById[d.id] = d.data(); });
 
     const data = snap.docs.map((d) => {
       const contractId = d.ref.parent.parent!.id;
       const contract = contractById[contractId];
-      const customer = contract ? customerById[contract.customerId] : undefined;
+      const customer = contract?.customerId ? customerById[contract.customerId] : undefined;
       return {
         id: d.id,
         contractId,
@@ -139,7 +154,7 @@ export default function RecebimentosPage() {
         where("status", "in", ["manual", "error"]),
         orderBy("createdAt", "desc"),
       ));
-      setAvisos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setAvisos(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as AvisoNotification));
     } catch (e) { console.error(e); }
     finally { setLoadingAvisos(false); }
   }
@@ -151,7 +166,7 @@ export default function RecebimentosPage() {
 
   // Abre comprovante privado via URL assinada (LGPD)
   async function abrirComprovante(req: PaymentRequest) {
-    const path = (req as any).proofPath as string | undefined;
+    const path = req.proofPath;
     if (path) {
       try {
         const res = await gerarUrlAssinadaFn({ path });
@@ -163,9 +178,11 @@ export default function RecebimentosPage() {
   }
 
   useEffect(() => {
-    loadInstallments();
-    loadRequests();
-    loadAvisos();
+    Promise.resolve().then(() => {
+      loadInstallments();
+      loadRequests();
+      loadAvisos();
+    });
   }, []);
 
   const today = todayISO();
@@ -442,7 +459,7 @@ export default function RecebimentosPage() {
                           &ldquo;{req.notes}&rdquo;
                         </p>
                       )}
-                      {(req.proofUrl || (req as any).proofPath) && (
+                      {(req.proofUrl || req.proofPath) && (
                         <button onClick={() => abrirComprovante(req)}
                            className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
                            style={{ background: "#3b82f618", border: "1px solid #3b82f640", color: "#3b82f6" }}>
@@ -519,12 +536,12 @@ export default function RecebimentosPage() {
                         {a.status === "error" && <span className="badge badge-danger">falha no envio automático</span>}
                       </div>
                       <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-                        Parcela #{a.installmentNumber} · venc. {formatDate(a.dueDate)}
+                        Parcela #{a.installmentNumber} · venc. {formatDate(a.dueDate ?? "")}
                       </p>
                       <p className="text-xs mt-2 whitespace-pre-line" style={{ color: "var(--text-muted)" }}>{a.mensagem}</p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      <a href={`https://wa.me/${a.phone}?text=${encodeURIComponent(a.mensagem)}`}
+                      <a href={`https://wa.me/${a.phone}?text=${encodeURIComponent(a.mensagem ?? "")}`}
                          target="_blank" rel="noopener noreferrer"
                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white"
                          style={{ background: "#25D366" }}>

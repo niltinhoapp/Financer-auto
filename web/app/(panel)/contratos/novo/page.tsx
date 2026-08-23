@@ -64,10 +64,12 @@ export default function NovoContratoPage() {
   });
 
   useEffect(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    d.setDate(1);
-    setFinanciamento((prev) => ({ ...prev, primeiroVencimento: d.toISOString().split("T")[0] }));
+    Promise.resolve().then(() => {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 1);
+      d.setDate(1);
+      setFinanciamento((prev) => ({ ...prev, primeiroVencimento: d.toISOString().split("T")[0] }));
+    });
     Promise.all([getCustomers(), getVehicles("available")]).then(([c, v]) => {
       setCustomers(c);
       setVehicles(v);
@@ -220,7 +222,7 @@ export default function NovoContratoPage() {
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium text-sm" style={{ color: "var(--text-primary)" }}>{c.name}</p>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {(c as any).restricted && (
+                      {c.restricted && (
                         <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                               style={{ background: "#ef444418", color: "#ef4444" }}>
                           Restrição
@@ -254,13 +256,13 @@ export default function NovoContratoPage() {
       {step === 2 && (
         <div className="space-y-4">
           {/* Alerta de restrição interna */}
-          {(selectedCustomer as any)?.restricted && (
+          {selectedCustomer?.restricted && (
             <div className="card p-4 space-y-1" style={{ borderColor: "#ef444450", background: "#ef444410" }}>
               <p className="text-sm font-semibold flex items-center gap-2" style={{ color: "#ef4444" }}>
                 <AlertTriangle className="w-4 h-4" /> Cliente com restrição interna
               </p>
               <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                {(selectedCustomer as any).restrictionReason || "Cliente marcado com restrição de crédito."}
+                {selectedCustomer.restrictionReason || "Cliente marcado com restrição de crédito."}
                 {" "}Avalie com cuidado antes de prosseguir com a venda.
               </p>
             </div>
@@ -521,7 +523,7 @@ export default function NovoContratoPage() {
               { label: "Parcela Mensal",   value: resumo.valorParcela,    accent: true  },
               { label: "Total a Pagar",    value: resumo.totalPago,       accent: false },
               { label: financiamento.modoManual ? "Diferença vs. Preço" : "Total de Juros", value: resumo.totalJuros, danger: true },
-            ].map(({ label, value, accent, danger }: any) => (
+            ].map(({ label, value, accent, danger }: { label: string; value: number; accent?: boolean; danger?: boolean }) => (
               <div key={label}>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p>
                 <p className="font-bold text-sm" style={{
@@ -568,7 +570,7 @@ export default function NovoContratoPage() {
                 ].map(({ key, label, ph, upper }) => (
                   <div key={key}>
                     <label className={labelCls} style={{ color: "var(--text-secondary)" }}>{label}</label>
-                    <input type="text" value={(tradeIn as any)[key]}
+                    <input type="text" value={tradeIn[key as "marca" | "modelo" | "ano" | "placa"]}
                            onChange={(e) => setTradeIn((p) => ({ ...p, [key]: upper ? e.target.value.toUpperCase() : e.target.value }))}
                            placeholder={ph} className={inputCls} style={inputStyle} />
                   </div>

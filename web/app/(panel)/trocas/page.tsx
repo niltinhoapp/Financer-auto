@@ -35,10 +35,6 @@ export default function TrocasPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    load();
-  }, []);
-
   async function load() {
     setLoading(true);
     try {
@@ -49,6 +45,10 @@ export default function TrocasPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    Promise.resolve().then(() => load());
+  }, []);
 
   async function handleApprove(req: ExchangeRequest) {
     if (!user) return;

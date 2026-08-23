@@ -15,7 +15,9 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // fecha sidebar ao navegar
-  useEffect(() => { setSidebarOpen(false); }, [pathname]);
+  useEffect(() => {
+    Promise.resolve().then(() => setSidebarOpen(false));
+  }, [pathname]);
 
   const isStaff = user?.role === "admin" || user?.role === "seller";
 
