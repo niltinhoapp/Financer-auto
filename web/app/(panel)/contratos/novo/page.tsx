@@ -8,6 +8,7 @@ import { getCustomers } from "@/lib/firestore/customers";
 import { getVehicles } from "@/lib/firestore/vehicles";
 import { createContract } from "@/lib/firestore/contracts";
 import { calcularResumoFinanciamento, gerarCronograma, gerarCronogramaManual } from "@/lib/financiamento";
+import { contractPayloadSchema, type ContractPayloadInput } from "@/lib/contractPayloadSchema";
 import { formatCurrency, todayISO } from "@/lib/utils";
 import { getDocs, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -131,7 +132,56 @@ export default function NovoContratoPage() {
   const docsFaltando = DOC_OBRIGATORIOS.filter((d) => !customerDocs.includes(d));
 
   async function handleSave() {
-    if (!user || !selectedCustomer || !selectedVehicle) return;
+    if (!user) return;
+
+    // Camada final de validação antes de persistir — os `disabled` dos
+    // botões do wizard orientam a navegação, mas não são a fonte de
+    // verdade da integridade dos dados. Cobre os dois modos de negociação
+    // (financiamento calculado e negócio combinado manualmente).
+    const payload: ContractPayloadInput = {
+      customerId: selectedCustomer?.id ?? null,
+      vehicleId: selectedVehicle?.id ?? null,
+      price: preco,
+      downPayment: financiamento.entrada,
+      downPaymentTotal: entradaTotal,
+      tradeIn: {
+        ativo: tradeIn.ativo,
+        marca: tradeIn.marca,
+        modelo: tradeIn.modelo,
+        ano: tradeIn.ano,
+        placa: tradeIn.placa,
+        valor: tradeIn.valor,
+      },
+      installmentsCount: financiamento.parcelas,
+      firstDueDate: financiamento.primeiroVencimento,
+      modoManual: financiamento.modoManual,
+      financedAmount: resumo.valorFinanciado,
+      installmentValue: resumo.valorParcela,
+      interestRate: financiamento.taxaMensal,
+      penaltyRate: financiamento.multa,
+      dailyInterestRate: financiamento.jurosDiario,
+      docsOk,
+      docsOverride,
+      isAdmin: user.role === "admin",
+    };
+
+    const validation = contractPayloadSchema.safeParse(payload);
+    if (!validation.success) {
+      const message = validation.error.issues.map((i) => i.message).join(" ");
+      const failedFields = validation.error.issues.map((i) => i.path.join(".")).join(", ");
+      console.error("Validação do contrato falhou antes de salvar:", validation.error.issues);
+      // Registro mínimo — só quais campos falharam, sem exceção completa
+      // nem dados pessoais: é uma validação de entrada esperada, não um bug.
+      Sentry.captureMessage(`Validação de contrato falhou antes de salvar: ${failedFields}`, "warning");
+      setError(message);
+      toast(message, "error");
+      return;
+    }
+
+    // A validação acima já garante customerId/vehicleId presentes —
+    // este check só ajuda o TypeScript a estreitar o tipo.
+    if (!selectedCustomer || !selectedVehicle) return;
+
     setSaving(true);
     setError("");
     try {
