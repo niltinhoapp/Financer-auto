@@ -57,9 +57,6 @@ function datetimeLocalToIso(local: string): string {
 function formatDateTimePt(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
-function startOfLocalDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-}
 function isSameLocalDay(iso: string, ref: Date): boolean {
   const d = new Date(iso);
   return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth() && d.getDate() === ref.getDate();
@@ -248,7 +245,10 @@ export default function LeadsPage() {
     if (followUpFilter === "pending") return l.followUpStatus === "pending";
     if (!l.nextFollowUpAt || l.followUpStatus !== "pending") return false;
     if (followUpFilter === "today") return isSameLocalDay(l.nextFollowUpAt, now);
-    if (followUpFilter === "overdue") return new Date(l.nextFollowUpAt) < startOfLocalDay(now);
+    // Atrasado = já venceu o instante agendado, não "antes de hoje". Um
+    // follow-up de hoje às 9h já está atrasado às 14h — "Hoje" e "Atrasados"
+    // são filtros independentes, um lead pode aparecer nos dois ao mesmo tempo.
+    if (followUpFilter === "overdue") return new Date(l.nextFollowUpAt) < now;
     return true;
   });
 
@@ -480,7 +480,7 @@ export default function LeadsPage() {
                                   <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>{lead.nextFollowUpNote}</p>
                                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                                     {formatDateTimePt(lead.nextFollowUpAt)}
-                                    {new Date(lead.nextFollowUpAt) < startOfLocalDay(now) && (
+                                    {new Date(lead.nextFollowUpAt) < now && (
                                       <span className="ml-1.5 font-semibold" style={{ color: "#ef4444" }}>Atrasado</span>
                                     )}
                                     {isSameLocalDay(lead.nextFollowUpAt, now) && (
