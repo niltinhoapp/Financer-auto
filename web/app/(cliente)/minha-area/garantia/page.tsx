@@ -193,6 +193,11 @@ export default function GarantiaPage() {
                       <p className="text-xs text-gray-600 mt-0.5"><span className="font-medium">Peças trocadas:</span> {r.parts.join(", ")}</p>
                     )}
                     {r.notes && <p className="text-xs text-gray-500 mt-1.5">{r.notes}</p>}
+                    {r.nextDueDate && (
+                      <p className="text-xs text-blue-600 mt-1.5 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" /> Próxima revisão prevista: {formatDate(r.nextDueDate)}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>

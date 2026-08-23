@@ -79,7 +79,7 @@ export default function ContratoDetailPage() {
   const [savingWarranty, setSavingWarranty] = useState(false);
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [revisionForm, setRevisionForm] = useState({
-    date: todayISO(), mileage: 0, services: "", parts: "", notes: "", workshopId: "",
+    date: todayISO(), mileage: 0, services: "", parts: "", notes: "", workshopId: "", nextDueDate: "",
   });
   const [savingRevision, setSavingRevision] = useState(false);
 
@@ -155,10 +155,11 @@ export default function ContratoDetailPage() {
         parts: revisionForm.parts.split(",").map((s) => s.trim()).filter(Boolean),
         photos: [],
         ...(revisionForm.notes.trim() ? { notes: revisionForm.notes.trim() } : {}),
+        ...(revisionForm.nextDueDate ? { nextDueDate: revisionForm.nextDueDate } : {}),
         createdBy: user.uid,
       });
       setShowRevisionForm(false);
-      setRevisionForm({ date: todayISO(), mileage: 0, services: "", parts: "", notes: "", workshopId: "" });
+      setRevisionForm({ date: todayISO(), mileage: 0, services: "", parts: "", notes: "", workshopId: "", nextDueDate: "" });
       await load();
     } finally {
       setSavingRevision(false);
@@ -984,6 +985,15 @@ export default function ContratoDetailPage() {
               </div>
             </div>
             <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Próxima revisão prevista (opcional)</label>
+              <input
+                type="date"
+                value={revisionForm.nextDueDate}
+                onChange={(e) => setRevisionForm({ ...revisionForm, nextDueDate: e.target.value })}
+                className="w-full sm:w-1/2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Observações</label>
               <textarea
                 value={revisionForm.notes}
@@ -1023,6 +1033,7 @@ export default function ContratoDetailPage() {
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Oficina</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Serviços</th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Peças</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500">Próxima revisão</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -1033,6 +1044,7 @@ export default function ContratoDetailPage() {
                   <td className="px-4 py-3 text-gray-700">{workshopName(r.workshopId)}</td>
                   <td className="px-4 py-3 text-gray-600">{r.services?.join(", ") || "—"}</td>
                   <td className="px-4 py-3 text-gray-600">{r.parts?.join(", ") || "—"}</td>
+                  <td className="px-4 py-3 text-gray-600">{r.nextDueDate ? formatDate(r.nextDueDate) : "—"}</td>
                 </tr>
               ))}
             </tbody>
