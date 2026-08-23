@@ -32,6 +32,13 @@ export interface Customer {
   approvalNote?: string;
   approvedBy?: string;
   approvedAt?: string;
+
+  // Restrição interna (alternativa interna ao SPC/Serasa — sem consulta externa)
+  restricted?: boolean;
+  restrictionReason?: string;
+  restrictedBy?: string;
+  restrictedAt?: string;
+
   createdBy: string;
   createdAt: string;
   updatedAt: string;

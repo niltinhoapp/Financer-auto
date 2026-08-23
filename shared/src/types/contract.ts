@@ -35,6 +35,33 @@ export interface Contract {
   notes?: string;
   signature?: ContractSignature;
 
+  // Trade-in
+  tradeIn?: {
+    marca: string;
+    modelo: string;
+    ano: string;
+    placa: string;
+    valor: number;
+    notas?: string;
+  };
+
+  // Documentação
+  docsOverrideBy?: string;
+  docsOverrideAt?: string;
+  docsPendingAtSale?: string[];
+
+  // Renegociações (acordos manuais sobre parcelas em atraso)
+  renegotiations?: {
+    date: string;
+    originalInstallmentNumbers: number[];
+    originalTotalValue: number;
+    downPayment: number;
+    newInstallmentsCount: number;
+    newInstallmentValue: number;
+    notes?: string;
+    renegotiatedBy: string;
+  }[];
+
   createdAt: string;
   updatedAt: string;
 }
