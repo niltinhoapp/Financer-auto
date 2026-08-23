@@ -8,6 +8,22 @@ const nextConfig: NextConfig = {
   // Monorepo: a raiz do workspace é o diretório pai (necessário p/ build na Vercel)
   turbopack: { root: path.join(__dirname, "..") },
   outputFileTracingRoot: path.join(__dirname, ".."),
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // Impede que o app (login, assinatura de contrato, upload de docs) seja
+          // embutido em iframe de terceiros — mitiga clickjacking.
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // App não usa câmera/microfone/geolocalização — nega por padrão.
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
+  },
 };
 
 export default withSentryConfig(nextConfig, {
