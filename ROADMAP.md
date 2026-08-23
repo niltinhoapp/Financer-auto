@@ -16,11 +16,35 @@ Antes de qualquer item da seção 3 ("Módulos de uma revenda 100% funcional"), 
 | **Fluxo de caixa** | 🟡 Parcial | `financeiro/page.tsx` (despesas por categoria) + `recebimentos/page.tsx` (846 linhas — cobrança manual, valor atualizado com juros/multa, aprovação de comprovante) + `lib/receitas.ts` (soma pagamentos + entradas) | **Sem DRE** (zero ocorrências no código). **Sem conciliação com nenhum gateway** — tudo é foto de comprovante + baixa manual |
 | **Comissionamento** | 🟡 Parcial | `comissoes/page.tsx` — comissão de vendedor interno (`sellerId`, `percentage`, `pending/paid`) | Zero suporte a comissão de correspondente bancário/hub (sem `partnerId`/`bankId`) |
 | **Pós-venda** | 🟡 Parcial | `oficinas/page.tsx` (CRUD de oficinas parceiras) + garantia e revisão **reais** (`Warranty`, `Revision`, `Workshop` em `@financer-auto/shared`, tela `minha-area/garantia`) | Sem reengajamento automatizado (campanhas, lembretes proativos de revisão) |
-| **Gestão de acesso** | 🟡 Parcial | 3 roles reais: `admin`, `seller`, `customer` (+ `prospect` transitório) | Sem role "financeiro" separada — quem acessa `/financeiro`, `/recebimentos`, `/comissoes` é qualquer admin/seller |
+| **Gestão de acesso** | ✅ Feito (2026-08-23) | 4 roles reais: `admin`, `seller`, `customer`, **`financial`** (+ `prospect` transitório). Ver detalhe na seção 1.1 abaixo | `excluirFinanceiro` (Cloud Function de exclusão) — fast-follow explícito, não bloqueia uso |
 | **PIX / Asaas** | 🔴 Não existe | Só um arquivo `.example.ts` de referência (`connectors/pix-receiver.example.ts`), nunca registrado. `connectors-registry.ts` tem a infraestrutura de plugin pronta, mas vazia. Zero menção a "asaas" no código | Tudo — hoje é 100% manual (foto de comprovante) |
 | **Financiamento bancário** | 🔴 Não existe | Nada — nem BV Open, nem Open Finance, nem qualquer API de banco. O que existe é só o wizard interno de financiamento **direto** entre a revenda e o cliente (contrato cláusula 7.1: "financiamento direto entre as partes, não envolvendo instituição financeira terceira") | Tudo |
 
 **Leitura prática:** os módulos "fáceis" (cadastro, contrato, doc do comprador, garantia) já têm base sólida — dá pra evoluir em cima. Os dois itens de maior esforço puro de integração externa (PIX/Asaas e banco) partem literalmente de zero código funcional, só têm a arquitetura de conector pronta esperando ser preenchida (ver [`BANKING-INTEGRATION.md`](./BANKING-INTEGRATION.md) e [`FEATURES.md`](./FEATURES.md), que já documentam essa arquitetura em detalhe).
+
+---
+
+## Fase 1 — Consolidar o que já existe
+
+### ✅ 1.1 Gestão de acesso — CONCLUÍDO (2026-08-23)
+
+Pre-check revelou uma divergência que o roadmap original não previa: **a barreira entre "vendedor" e dados financeiros já era só visual** (menu escondia Recebimentos/Financeiro/Comissões pro seller), não estrutural — não havia bloqueio de rota nem checagem dentro das páginas. E, num detalhe oposto, o fluxo real de "Confirmar pagamento" em `recebimentos/page.tsx` grava direto no Firestore (não via Cloud Function) e isso já era **admin-only** nas regras, mais restrito do que a UI sugeria.
+
+Implementado em 3 commits isolados, cada um validado (`tsc`+`eslint`+`build`) e revisado por `git diff` antes do próximo:
+
+1. **`a95aea3`** — Tipo (`UserRole` ganha `"financial"`) + `firestore.rules` (helpers `isFinanceiro()`/`isStaff()`, aditivos em `contracts`/`installments`/`payments`/`paymentRequests`/`commissions`/`expenses`/`stats`/`notifications`/`audit`)
+2. **`4fc0d12`** — Cloud Functions: nova `criarFinanceiro` (espelha `criarVendedor`), `financial` adicionado em `registerPayment`/`gerarUrlAssinada`/`notificarCliente`
+3. **`0ca03dc`** — UI: `financeiroNav` na Sidebar, gate de rota em `(panel)/layout.tsx`, seção "Financeiro" em `vendedores/page.tsx` com formulário de criação próprio
+
+**O que o financeiro pode fazer:** ver contratos/parcelas/pagamentos/comissões/despesas de toda a loja (não só as próprias, diferente do seller), confirmar/recusar solicitação de pagamento, registrar baixa de parcela, lançar despesa, marcar comissão como paga, ver comprovantes.
+
+**O que não pode:** criar/editar cliente, veículo ou contrato; criar/excluir comissão; gerenciar vendedores; ver documentos KYC do cliente (CPF/RG/renda) — permanece exclusivo de admin/seller.
+
+**Pendência explícita (não bloqueia uso):** `excluirFinanceiro` (Cloud Function de exclusão) não foi criada — `excluirVendedorFn` existente só aceita alvos com `role === "seller"`, então não dá pra reaproveitar. Criar quando for necessário desativar um usuário financeiro.
+
+### ⏳ 1.2 Pós-venda — auditar estrutura existente (garantia/revisão), sem WhatsApp ainda
+### ⏳ 1.3 Comissionamento — auditar cálculo/persistência, preparar distinção vendedor × correspondente
+### ⏳ 1.4 Fluxo financeiro — mapear Venda→recebimento→receita→despesa→resultado, avaliar DRE derivado
 
 ---
 
@@ -147,12 +171,21 @@ Conecta o que já existe (veículo + cliente) com acompanhamento de negociação
 
 ## Ordem de execução sugerida
 
-1. [ ] Sandbox BV Open → provar conceito técnico de proposta de financiamento
-2. [ ] Asaas subcontas → estrutura de recebimento Pix por loja
-3. [x] Checkpoint real do estado atual do Financer Auto — feito nesta rodada (seção 0 acima)
-4. [ ] CRM → em cima do cadastro de veículo/cliente já existente
-5. [ ] Contato comercial com Autoconf / QI Tech → avaliar parceria multibanco
-6. [ ] Documentação/contrato (assinatura terceirizada + doc do veículo), fluxo de caixa (DRE), comissionamento (correspondente), pós-venda (reengajamento)
+1. [x] Checkpoint real do estado atual do Financer Auto — feito (seção 0 acima)
+2. **Fase 1 — Consolidar o que já existe** (menor risco, interno)
+   - [x] 1.1 Gestão de acesso (role `financial`) — ver detalhe acima, commits `a95aea3`/`4fc0d12`/`0ca03dc`
+   - [ ] 1.2 Pós-venda (auditar garantia/revisão existentes)
+   - [ ] 1.3 Comissionamento (auditar cálculo, preparar distinção vendedor × correspondente)
+   - [ ] 1.4 Fluxo financeiro (mapear venda→recebimento→receita→despesa→resultado, avaliar DRE)
+3. [ ] **Fase 2 — CRM** → em cima do cadastro de veículo/cliente já existente (pipeline incremental, não tudo de uma vez)
+4. [ ] **Fase 3 — Contratos e documentação** → estabilizar CRM→cliente→veículo→negociação→contrato antes de avaliar CRLV/laudo/assinatura terceirizada
+5. [ ] **Fase 4 — Asaas/Pix** (área crítica — levantamento completo antes de codar: auth, sandbox, subcontas, split, webhook, idempotência)
+6. [ ] **Fase 5 — BV Open** (PoC isolada: auth sandbox → simulação fictícia, nada além disso inicialmente)
+7. [ ] **Fase 6 — Multibanco** (só pesquisa/arquitetura até ter resultado da PoC BV — Autoconf, QI Tech)
+8. [ ] **Fase 7 — Automações** (só depois do CRM estável — follow-up, lembretes, reengajamento)
+9. [ ] **Fase 8 — Publicação em portais** (OLX Autos, Webmotors, iCarros — fase futura, não antes do núcleo estar estável)
+
+> Protocolo de execução por etapa (PRE-CHECK → PLANO → IMPLEMENTAÇÃO → VALIDAÇÃO → CHECKPOINT), critérios de parada, e regras de proteção multi-tenant/banco de dados estão definidos na instrução de execução do roadmap (não duplicados aqui para não desatualizar em dois lugares) — aplicados em cada etapa executada, como no exemplo da 1.1 acima.
 
 ---
 
