@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, PDFPage } from "pdf-lib";
 import { valorPorExtenso } from "./extenso";
+import { formatCurrency as fmt } from "@/lib/utils";
 
 export interface PromissoriaParcela {
   numero: number;
@@ -28,10 +29,6 @@ export interface PromissoriaData {
 
   // Parcelas — uma nota promissória por parcela
   parcelas: PromissoriaParcela[];
-}
-
-function fmt(v: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
 function drawLine(page: PDFPage, x1: number, y: number, x2: number, color = rgb(0.82, 0.85, 0.9)) {

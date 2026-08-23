@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, PDFPage } from "pdf-lib";
+import { formatCurrency as fmt } from "@/lib/utils";
 
 export interface ExtratoLancamento {
   data: string;       // dd/mm/aaaa
@@ -16,10 +17,6 @@ export interface ExtratoData {
   totalPago: number;
   saldoDevedor: number;
   lancamentos: ExtratoLancamento[];
-}
-
-function fmt(v: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
 function drawLine(page: PDFPage, x1: number, y: number, x2: number, color = rgb(0.88, 0.88, 0.88)) {

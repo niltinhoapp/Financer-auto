@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, PDFPage } from "pdf-lib";
+import { formatCurrency as fmt } from "@/lib/utils";
 
 interface ContratoData {
   // Contrato
@@ -41,10 +42,6 @@ interface ContratoData {
   cronograma: { numero: number; vencimento: string; valor: number }[];
   // Notas
   notas?: string;
-}
-
-function fmt(v: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
 function drawLine(page: PDFPage, x1: number, y: number, x2: number, color = rgb(0.88, 0.88, 0.88)) {
