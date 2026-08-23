@@ -8,7 +8,7 @@ import { registrarAuditoria } from "@/lib/audit";
 import { getUsersByRole } from "@/lib/firestore/users";
 import { formatDate } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
-import { Phone, Mail, Car, Clock, CheckCircle2, XCircle, MessageSquare, User, UserCog, Zap } from "lucide-react";
+import { Phone, Mail, Car, Clock, CheckCircle2, XCircle, MessageSquare, User, UserCog, Zap, CalendarClock, Check } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelecaoExclusao, CheckExclusao } from "@/components/admin/SelecaoExclusao";
@@ -28,8 +28,41 @@ interface Lead {
   // Vendedor responsável pelo acompanhamento — opcional para não quebrar
   // leads existentes (nenhum deles tem esse campo hoje).
   sellerId?: string | null;
+  // Follow-up interno (Bloco 2.5). Responsável é o próprio sellerId do lead —
+  // não duplicamos essa informação aqui. datetime completo em ISO8601 (não
+  // date-only como Revision.nextDueDate): follow-up precisa de hora e de
+  // comparação por intervalo ("hoje", "atrasado"), e ISO8601 compara
+  // corretamente como string nesses casos, igual ao resto do projeto
+  // (createdAt/updatedAt/timestamp já são todos ISO8601 — Timestamp do
+  // Firestore está importado em um arquivo mas nunca de fato usado).
+  nextFollowUpAt?: string | null;
+  nextFollowUpNote?: string | null;
+  followUpStatus?: "pending" | "done" | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// datetime-local (input do navegador, sem timezone) <-> ISO8601 (armazenado).
+// new Date(local) e d.getHours()/getFullYear()/etc. usam o fuso LOCAL do
+// navegador nos dois sentidos — isso evita o bug clássico de salvar num fuso
+// e reler deslocado (ex: 14:00 virar 11:00 ao reabrir o formulário).
+function isoToDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function datetimeLocalToIso(local: string): string {
+  return new Date(local).toISOString();
+}
+function formatDateTimePt(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+function startOfLocalDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+function isSameLocalDay(iso: string, ref: Date): boolean {
+  const d = new Date(iso);
+  return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth() && d.getDate() === ref.getDate();
 }
 
 const statusCfg = {
@@ -50,6 +83,9 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Lead["status"] | "all">("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [followUpFilter, setFollowUpFilter] = useState<"all" | "today" | "overdue" | "none" | "pending">("all");
+  const [editingFollowUpId, setEditingFollowUpId] = useState<string | null>(null);
+  const [followUpDraft, setFollowUpDraft] = useState({ note: "", datetimeLocal: "" });
 
   useEffect(() => { load(); }, []);
 
@@ -123,12 +159,98 @@ export default function LeadsPage() {
     }
   }
 
+  // Cria ou reagenda o follow-up. É a mesma operação nos dois casos — a
+  // diferença é só o texto da auditoria (agendado vs. reagendado), decidida
+  // conforme já havia ou não um follow-up pendente antes desta chamada.
+  async function saveFollowUp(id: string, note: string, datetimeLocalValue: string) {
+    setUpdatingId(id);
+    try {
+      const lead = leads.find((l) => l.id === id);
+      const isNew = !lead?.nextFollowUpAt || lead?.followUpStatus !== "pending";
+      const previousAt = lead?.nextFollowUpAt ?? null;
+      const previousNote = lead?.nextFollowUpNote ?? null;
+      const nextFollowUpAt = datetimeLocalToIso(datetimeLocalValue);
+      const nextFollowUpNote = note.trim();
+      await updateDoc(doc(db, "leads", id), {
+        nextFollowUpAt,
+        nextFollowUpNote,
+        followUpStatus: "pending",
+        updatedAt: new Date().toISOString(),
+      });
+      setLeads((prev) => prev.map((l) => l.id === id ? { ...l, nextFollowUpAt, nextFollowUpNote, followUpStatus: "pending" } : l));
+      if (lead) {
+        let descricao: string;
+        if (isNew) {
+          descricao = `Follow-up agendado para Lead ${lead.name}: "${nextFollowUpNote}" — ${formatDateTimePt(nextFollowUpAt)}`;
+        } else {
+          const mudancas: string[] = [];
+          if (previousAt !== nextFollowUpAt) mudancas.push(`data de "${formatDateTimePt(previousAt!)}" para "${formatDateTimePt(nextFollowUpAt)}"`);
+          if (previousNote !== nextFollowUpNote) mudancas.push(`ação de "${previousNote}" para "${nextFollowUpNote}"`);
+          descricao = `Follow-up do Lead ${lead.name} reagendado` + (mudancas.length ? `: ${mudancas.join("; ")}` : "");
+        }
+        registrarAuditoria("lead_followup_agendado", descricao, user, { tipo: "lead", id });
+      }
+    } finally {
+      setUpdatingId(null);
+      setEditingFollowUpId(null);
+    }
+  }
+
+  async function completeFollowUp(id: string) {
+    setUpdatingId(id);
+    try {
+      const lead = leads.find((l) => l.id === id);
+      // Mantém nextFollowUpAt/nextFollowUpNote intactos ao concluir — não há
+      // motivo pra apagar, e isso deixa "último follow-up" visível sem
+      // precisar de nenhuma estrutura de histórico embutida (o audit já
+      // registra a trilha completa).
+      await updateDoc(doc(db, "leads", id), { followUpStatus: "done", updatedAt: new Date().toISOString() });
+      setLeads((prev) => prev.map((l) => l.id === id ? { ...l, followUpStatus: "done" } : l));
+      if (lead) {
+        // O Modelo A guarda só o follow-up atual — se um novo for agendado depois,
+        // este texto/data são sobrescritos. Por isso a descrição inclui o que foi
+        // concluído: é a única forma de essa informação sobreviver no histórico
+        // permanente (audit), como o item 6 do bloco pede.
+        const detalhe = lead.nextFollowUpAt ? `: "${lead.nextFollowUpNote}" (${formatDateTimePt(lead.nextFollowUpAt)})` : "";
+        registrarAuditoria("lead_followup_concluido", `Follow-up do Lead ${lead.name} concluído${detalhe}`, user, { tipo: "lead", id });
+      }
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  function openFollowUpForm(lead: Lead) {
+    setEditingFollowUpId(lead.id);
+    setFollowUpDraft(
+      lead.nextFollowUpAt && lead.followUpStatus === "pending"
+        ? { note: lead.nextFollowUpNote ?? "", datetimeLocal: isoToDatetimeLocal(lead.nextFollowUpAt) }
+        : { note: "", datetimeLocal: "" }
+    );
+  }
+
   const sel = useSelecaoExclusao(
     async (id) => { await deleteDoc(doc(db, "leads", id)); },
     load
   );
 
-  const filtered = filter === "all" ? leads : leads.filter((l) => l.status === filter);
+  const byStatus = filter === "all" ? leads : leads.filter((l) => l.status === filter);
+
+  // Filtro de follow-up é derivado no cliente a partir dos leads já
+  // carregados — sem índice composto novo, sem query server-side. A tela já
+  // limita a 300 leads (load()), então isso é seguro na escala atual;
+  // documentado no ROADMAP.md que uma consulta server-side por
+  // sellerId + followUpStatus + nextFollowUpAt vai precisar de índice
+  // composto quando/se essa otimização for necessária.
+  const now = new Date();
+  const filtered = byStatus.filter((l) => {
+    if (followUpFilter === "all") return true;
+    if (followUpFilter === "none") return !l.nextFollowUpAt;
+    if (followUpFilter === "pending") return l.followUpStatus === "pending";
+    if (!l.nextFollowUpAt || l.followUpStatus !== "pending") return false;
+    if (followUpFilter === "today") return isSameLocalDay(l.nextFollowUpAt, now);
+    if (followUpFilter === "overdue") return new Date(l.nextFollowUpAt) < startOfLocalDay(now);
+    return true;
+  });
 
   const counts = STATUSES.reduce((acc, s) => {
     acc[s] = leads.filter((l) => l.status === s).length;
@@ -190,6 +312,25 @@ export default function LeadsPage() {
                     ? { background: "var(--bg-card)", color: "var(--text-primary)", boxShadow: "var(--shadow-sm)" }
                     : { color: "var(--text-muted)" }}>
             {statusCfg[s].label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filtro de follow-up — derivado no cliente, sem índice novo (ver comentário acima de `filtered`) */}
+      <div className="flex gap-1 p-1 rounded-xl mb-5 overflow-x-auto" style={{ background: "var(--bg-hover)" }}>
+        {([
+          { key: "all",     label: "Todos" },
+          { key: "today",   label: "Hoje" },
+          { key: "overdue", label: "Atrasados" },
+          { key: "pending", label: "Pendentes" },
+          { key: "none",    label: "Sem follow-up" },
+        ] as const).map(({ key, label }) => (
+          <button key={key} onClick={() => setFollowUpFilter(key)}
+                  className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+                  style={followUpFilter === key
+                    ? { background: "var(--bg-card)", color: "var(--text-primary)", boxShadow: "var(--shadow-sm)" }
+                    : { color: "var(--text-muted)" }}>
+            {label}
           </button>
         ))}
       </div>
@@ -287,6 +428,111 @@ export default function LeadsPage() {
                         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                           {lead.sellerId === user?.uid ? "Vendedor responsável: você" : lead.sellerId ? "Vendedor responsável atribuído" : "Sem vendedor responsável"}
                         </p>
+                      )}
+                    </div>
+
+                    {/* Follow-up interno (Bloco 2.5) — próxima ação, data/hora,
+                        concluir/reagendar. Responsável é o próprio sellerId acima,
+                        não duplicamos essa informação aqui. */}
+                    <div className="mt-2 p-2.5 rounded-lg" style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}>
+                      {editingFollowUpId === lead.id ? (
+                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            placeholder="Próxima ação (ex: Ligar para confirmar entrada)"
+                            value={followUpDraft.note}
+                            onChange={(e) => setFollowUpDraft((p) => ({ ...p, note: e.target.value }))}
+                            className="w-full px-2 py-1.5 rounded-lg text-xs"
+                            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                          />
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <input
+                              type="datetime-local"
+                              value={followUpDraft.datetimeLocal}
+                              onChange={(e) => setFollowUpDraft((p) => ({ ...p, datetimeLocal: e.target.value }))}
+                              className="px-2 py-1.5 rounded-lg text-xs"
+                              style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                            />
+                            <button
+                              disabled={!followUpDraft.note.trim() || !followUpDraft.datetimeLocal || updatingId === lead.id}
+                              onClick={() => saveFollowUp(lead.id, followUpDraft.note, followUpDraft.datetimeLocal)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
+                              style={{ background: "var(--accent)" }}
+                            >
+                              Salvar
+                            </button>
+                            <button
+                              onClick={() => setEditingFollowUpId(null)}
+                              className="px-3 py-1.5 rounded-lg text-xs"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          {lead.nextFollowUpAt && lead.followUpStatus === "pending" ? (
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <CalendarClock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>{lead.nextFollowUpNote}</p>
+                                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                    {formatDateTimePt(lead.nextFollowUpAt)}
+                                    {new Date(lead.nextFollowUpAt) < startOfLocalDay(now) && (
+                                      <span className="ml-1.5 font-semibold" style={{ color: "#ef4444" }}>Atrasado</span>
+                                    )}
+                                    {isSameLocalDay(lead.nextFollowUpAt, now) && (
+                                      <span className="ml-1.5 font-semibold" style={{ color: "var(--accent)" }}>Hoje</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button onClick={() => openFollowUpForm(lead)}
+                                        disabled={updatingId === lead.id}
+                                        className="px-2 py-1 rounded-lg text-xs" style={{ color: "var(--accent)" }}>
+                                  Reagendar
+                                </button>
+                                <button onClick={() => completeFollowUp(lead.id)}
+                                        disabled={updatingId === lead.id}
+                                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white"
+                                        style={{ background: "#10b981" }}>
+                                  <Check className="w-3 h-3" /> Concluir
+                                </button>
+                              </div>
+                            </div>
+                          ) : lead.nextFollowUpAt && lead.followUpStatus === "done" ? (
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="min-w-0">
+                                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                  <CheckCircle2 className="w-3 h-3 inline mr-1" style={{ color: "#10b981" }} />
+                                  Concluído: &quot;{lead.nextFollowUpNote}&quot; ({formatDateTimePt(lead.nextFollowUpAt)})
+                                </p>
+                              </div>
+                              <button onClick={() => openFollowUpForm(lead)}
+                                      disabled={updatingId === lead.id}
+                                      className="px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0" style={{ color: "var(--accent)" }}>
+                                Agendar novo
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Sem follow-up</p>
+                              <button onClick={() => openFollowUpForm(lead)}
+                                      disabled={updatingId === lead.id}
+                                      className="px-2 py-1 rounded-lg text-xs font-medium" style={{ color: "var(--accent)" }}>
+                                Agendar
+                              </button>
+                            </div>
+                          )}
+                          {!lead.sellerId && (
+                            <p className="text-xs mt-1" style={{ color: "#f59e0b" }}>
+                              ⚠ Sem vendedor responsável atribuído.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
 
