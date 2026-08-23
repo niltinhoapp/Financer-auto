@@ -81,6 +81,29 @@ Mapeamento (commit `00ae5cb`): `Venda (downPayment) + parcela paga (payments) �
 
 ---
 
+## Fase 2 — CRM
+
+Ordem aprovada: 2.1 Histórico/auditoria → 2.2 Vendedor responsável (`sellerId`) → 2.3 Pipeline/status (só PRE-CHECK por enquanto) → 2.4 Veículos de interesse → 2.5 Follow-up/lembretes. Um bloco por vez, cada um validado e commitado isoladamente antes do próximo.
+
+### ✅ 2.1 Histórico/Auditoria de Lead — CONCLUÍDO (2026-08-23)
+
+PRE-CHECK (commit `c631a47`) confirmou infraestrutura reaproveitável: `audit/{logId}` + `registrarAuditoria()` já usados em `contratos/[id]`, `clientes/[id]`, `recebimentos` — sempre sem `await`, sempre depois da escrita principal já ter sucesso. Nenhuma collection nova criada.
+
+- `leads/page.tsx`: `updateStatus()` captura o status anterior do state local antes do write, grava, e dispara `registrarAuditoria("lead_status_alterado", ...)` com "de X para Y" na descrição. Status/labels/transições **inalterados** — qualquer status ainda pode virar qualquer outro, sem máquina de estados.
+- `clientes/novo/page.tsx`: o caminho de conversão (lead→cliente), que já tinha seu próprio try/catch isolado, ganhou `registrarAuditoria("lead_convertido", ...)` dentro do mesmo bloco — histórico agora cobre tanto mudanças manuais no `<select>` quanto a conversão real.
+
+Falha de auditoria não corrompe estado: `registrarAuditoria()` já engolia seus próprios erros (nunca rejeita a Promise) e só é chamada depois da escrita principal ter sucesso — verificado por rastreamento de código, não só assumido.
+
+### ⏳ 2.2 Vendedor responsável (`sellerId`) — próximo bloco
+
+### ⏳ 2.3 Pipeline/status — só PRE-CHECK (decisão de modelo, sem implementar ainda)
+
+### ⏳ 2.4 Veículos de interesse (plural)
+
+### ⏳ 2.5 Follow-up/lembretes (WhatsApp fica pra Fase 7)
+
+---
+
 ## Contexto — como funciona o financiamento de veículo
 
 Loja recolhe documentos do comprador e envia proposta pro banco financiar o veículo. Não existe um "molde pronto" universal — cada banco tem seu próprio portal/esteira de crédito de lojista, mas os campos entre eles são parecidos.
