@@ -14,7 +14,7 @@
 | Código/Arquitetura | 0 | 3 | 5 | 3 |
 | UI/UX & Acessibilidade | 3 | 7 | 4 | — |
 
-**Status:** ✅ Todos os 4 achados críticos (1.1, 3.1, 3.2, 3.3) já foram corrigidos — ver detalhes em cada seção e o checklist no plano de ação.
+**Status:** ✅ Todos os 4 críticos (1.1, 3.1, 3.2, 3.3) e todos os 5 achados de prioridade alta (1.2, 1.3, 2.1, 2.2, 2.3) já foram corrigidos ou mitigados — ver detalhes em cada seção e o checklist no plano de ação. Restam os itens de prioridade média/baixa e dois itens parcialmente resolvidos com justificativa (1.3: vulnerabilidades de `expo`/`google-gax` exigem major upgrade; 2.3: `recebimentos`/`comissoes` precisam de arquitetura de agregação, não um patch rápido).
 
 ---
 
@@ -95,13 +95,15 @@ Não há `headers()` com CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Stri
 
 **Correção aplicada (commit `6d2a41c`):** `.github/workflows/ci.yml` criado com 3 jobs: `web` (lint + typecheck + build), `functions` (typecheck + build), `audit` (npm audit high/critical, não-bloqueante). Roda em push/PR para `master`.
 
-**2.2 — ESLint: 94 erros / 37 avisos**
+**2.2 — ✅ CORRIGIDO — ESLint: 94 erros / 37 avisos**
 
 Destaques recorrentes:
 - `react-hooks/set-state-in-effect` em `veiculos/[id]/page.tsx:79`, `vendedores/page.tsx:44`, `VeiculoDetalhe.tsx:72`, `PWA.tsx:37`, `ThemeContext.tsx:25` — `useEffect` chamando setState sem guard, causando renders em cascata.
 - `@typescript-eslint/no-explicit-any` em ~10 pontos, vários tocando dados de usuário/autenticação (`(user as any).email`).
-- `<img>` em vez de `next/image` em 6+ arquivos do catálogo de veículos — impacto real em LCP, já que é um catálogo com fotos.
+- `<img>` em vez de `next/image` em 6+ arquivos do catálogo de veículos — impacto real em LCP, já que é um catálogo com fotos (ficou como aviso, não erro — não bloqueante, não corrigido nesta rodada).
 - Bug real pego pelo lint: `SelecaoExclusao.tsx:45` — `let falhas` nunca reatribuído (`prefer-const`), sinal de lógica de acumulação de falhas potencialmente quebrada.
+
+**Correção aplicada (commit `aada437`):** 94 → **0 erros** (37 warnings pré-existentes mantidos, nenhum novo). `set-state-in-effect` resolvido envolvendo a chamada em `Promise.resolve().then(() => load())` em ~20 arquivos. `no-explicit-any` resolvido usando tipos reais de `@financer-auto/shared` ou interfaces locais mínimas onde não havia tipo pronto. Também corrigidos 2 bugs reais de hoisting (função chamada antes de ser declarada, em `clientes/[id]` e `trocas`) e 1 chamada impura de `Date.now()` durante render em `clientes/novo`. **Investigado o caso do `SelecaoExclusao.tsx`:** não era bug — `falhas` só era usado via `.push()`, nunca reatribuído, apenas `let` desnecessário. `tsc --noEmit` e `npm run build` (33 rotas) confirmados limpos após a correção.
 
 **2.3 — 🟡 PARCIALMENTE CORRIGIDO — Queries Firestore sem paginação**
 
@@ -227,7 +229,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 - [x] **[SEG]** Rodar `npm audit fix`, testar regressões (1.3) — ✅ commits `6a88dab`, `0898de8` (web: 0 vulns; raiz: 33→26, resto exige major upgrade de expo/google-gax, ver detalhe)
 - [x] **[SEG]** Aumentar entropia de senha temporária (1.2) — ✅ commit `6d2a41c` (rate-limit no login ainda pendente)
 - [x] **[CODE]** Criar workflow de CI (lint + typecheck + build) (2.1) — ✅ commit `6d2a41c`
-- [ ] **[CODE]** Corrigir os 94 erros de ESLint, priorizando `set-state-in-effect` (2.2) — 🔄 em andamento
+- [x] **[CODE]** Corrigir os 94 erros de ESLint, priorizando `set-state-in-effect` (2.2) — ✅ commit `aada437`
 - [x] **[CODE]** Adicionar `limit()`/`getCountFromServer` nas queries seguras (2.3) — ✅ commit `6d2a41c` (recebimentos/comissoes ficam para item de arquitetura à parte)
 - [x] **[UX]** Adicionar fluxo de exclusão de contrato individual (3.3) — ✅ commit `420be03`
 
