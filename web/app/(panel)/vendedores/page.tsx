@@ -2,22 +2,37 @@
 
 import { useEffect, useState } from "react";
 import { getUsersByRole } from "@/lib/firestore/users";
-import { criarVendedorFn } from "@/lib/functions";
+import { getContracts } from "@/lib/firestore/contracts";
+import { criarVendedorFn, excluirVendedorFn } from "@/lib/functions";
+import { formatCurrency } from "@/lib/utils";
 import type { User } from "@financer-auto/shared";
-import { Plus, UserCog } from "lucide-react";
+import { Plus, UserCog, Trash2 } from "lucide-react";
 
+import { useToast } from "@/components/ui/Toast";
 export default function VendedoresPage() {
+  const { toast } = useToast();
   const [sellers, setSellers] = useState<User[]>([]);
+  const [stats, setStats] = useState<Record<string, { count: number; totalSold: number }>>({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [deletingUid, setDeletingUid] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
 
   async function load() {
     try {
-      const s = await getUsersByRole("seller");
+      const [s, contracts] = await Promise.all([getUsersByRole("seller"), getContracts()]);
       setSellers(s);
+      const byUid: Record<string, { count: number; totalSold: number }> = {};
+      contracts.forEach((c) => {
+        if (!c.sellerId) return;
+        if (!byUid[c.sellerId]) byUid[c.sellerId] = { count: 0, totalSold: 0 };
+        byUid[c.sellerId].count += 1;
+        byUid[c.sellerId].totalSold += c.salePrice || 0;
+      });
+      setStats(byUid);
     } catch (err) {
       console.error("Erro ao carregar vendedores:", err);
       setSellers([]);
@@ -50,6 +65,33 @@ export default function VendedoresPage() {
       setError(message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(seller: User) {
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir o vendedor "${seller.name}"?\n\n` +
+      `Se ele já tiver contratos vinculados, ele será apenas desativado (para preservar o histórico). ` +
+      `Caso contrário, será removido permanentemente.`
+    );
+    if (!confirmed) return;
+
+    setDeletingUid(seller.uid);
+    setDeleteError("");
+    try {
+      const res = await excluirVendedorFn({ uid: seller.uid });
+      if (res.data.mode === "deactivated") {
+        toast(`"${seller.name}" possui contratos vinculados e foi apenas desativado.`, "info");
+      }
+      load();
+    } catch (err: unknown) {
+      const message =
+        (err as { details?: string; message?: string })?.details ??
+        (err as Error)?.message ??
+        "Erro ao excluir vendedor.";
+      setDeleteError(message);
+    } finally {
+      setDeletingUid(null);
     }
   }
 
@@ -147,13 +189,19 @@ export default function VendedoresPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {deleteError && (
+            <p className="text-sm text-red-600 bg-red-50 px-4 py-2.5 border-b border-red-100">{deleteError}</p>
+          )}
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Telefone</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Vendas</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Total Vendido</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -162,6 +210,8 @@ export default function VendedoresPage() {
                   <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
                   <td className="px-4 py-3 text-gray-600">{s.email}</td>
                   <td className="px-4 py-3 text-gray-600">{s.phone}</td>
+                  <td className="px-4 py-3 text-gray-600">{stats[s.uid]?.count ?? 0}</td>
+                  <td className="px-4 py-3 text-gray-600">{formatCurrency(stats[s.uid]?.totalSold ?? 0)}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -172,6 +222,17 @@ export default function VendedoresPage() {
                     >
                       {s.active ? "Ativo" : "Inativo"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleDelete(s)}
+                      disabled={deletingUid === s.uid}
+                      title="Excluir vendedor"
+                      className="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      {deletingUid === s.uid ? "Excluindo..." : "Excluir"}
+                    </button>
                   </td>
                 </tr>
               ))}

@@ -9,6 +9,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Contract, Customer, Vehicle } from "@financer-auto/shared";
 import { Plus, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { excluirContratoFn } from "@/lib/functions";
+import { useSelecaoExclusao, CheckExclusao } from "@/components/admin/SelecaoExclusao";
 
 const statusLabel: Record<string, string> = {
   active: "Ativo",
@@ -32,21 +34,28 @@ export default function ContratosPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("");
 
+  async function load() {
+    const filters = user?.role === "seller" ? { sellerId: user!.uid } : {};
+    const [contracts, customerList, vehicleList] = await Promise.all([
+      getContracts(filters),
+      getCustomers(),
+      getVehicles(),
+    ]);
+    setContracts(contracts);
+    setCustomers(Object.fromEntries(customerList.map((c) => [c.id, c])));
+    setVehicles(Object.fromEntries(vehicleList.map((v) => [v.id, v])));
+    setLoading(false);
+  }
+
   useEffect(() => {
-    async function load() {
-      const filters = user?.role === "seller" ? { sellerId: user.uid } : {};
-      const [contracts, customerList, vehicleList] = await Promise.all([
-        getContracts(filters),
-        getCustomers(),
-        getVehicles(),
-      ]);
-      setContracts(contracts);
-      setCustomers(Object.fromEntries(customerList.map((c) => [c.id, c])));
-      setVehicles(Object.fromEntries(vehicleList.map((v) => [v.id, v])));
-      setLoading(false);
-    }
     if (user) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const sel = useSelecaoExclusao(
+    async (id) => { await excluirContratoFn({ contractId: id }); },
+    load
+  );
 
   const filtered = contracts.filter(
     (c) => !filterStatus || c.status === filterStatus
@@ -59,13 +68,16 @@ export default function ContratosPage() {
           <h1 className="text-2xl font-bold text-gray-900">Contratos</h1>
           <p className="text-gray-500 text-sm mt-1">{contracts.length} contratos</p>
         </div>
-        <Link
-          href="/contratos/novo"
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Venda
-        </Link>
+        <div className="flex items-center gap-2">
+          {user?.role === "admin" && <sel.ToggleButton />}
+          <Link
+            href="/contratos/novo"
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Venda
+          </Link>
+        </div>
       </div>
 
       <div className="mb-6">
@@ -96,6 +108,7 @@ export default function ContratosPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                {sel.selecting && <th className="px-4 py-3 w-8" />}
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Cliente</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Veículo</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Valor</th>
@@ -110,7 +123,14 @@ export default function ContratosPage() {
                 const customer = customers[c.customerId];
                 const vehicle = vehicles[c.vehicleId];
                 return (
-                  <tr key={c.id} className="hover:bg-gray-50">
+                  <tr key={c.id} className="hover:bg-gray-50"
+                      style={{ cursor: sel.selecting ? "pointer" : undefined }}
+                      onClick={() => sel.selecting && sel.toggle(c.id)}>
+                    {sel.selecting && (
+                      <td className="px-4 py-3">
+                        <CheckExclusao checked={sel.isSelected(c.id)} onChange={() => sel.toggle(c.id)} />
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {customer?.name ?? "—"}
                     </td>
@@ -148,6 +168,8 @@ export default function ContratosPage() {
           </table>
         </div>
       )}
+
+      <sel.Bar itemLabel="contrato(s)" />
     </div>
   );
 }
