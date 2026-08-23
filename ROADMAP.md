@@ -106,7 +106,24 @@ Auditoria: `updateSellerId()` segue o mesmo padrão fire-and-forget-após-sucess
 
 **Não implementado agora, documentado como oportunidade futura:** transportar `lead.sellerId` automaticamente pro `contract.sellerId` no momento da conversão. Precisa de PRE-CHECK próprio (decidir se sobrescreve o auto-assign atual do criador do contrato, ou só pré-preenche).
 
-### ⏳ 2.3 Pipeline/status — só PRE-CHECK (decisão de modelo, sem implementar ainda)
+### ✅ 2.3 Pipeline/status — DECISÃO TOMADA, sem alteração estrutural (2026-08-23)
+
+**PRE-CHECK** (busca global por `"new"|"contacted"|"negotiating"|"converted"|"lost"`) mapeou todo uso real do enum de `Lead.status`: definição do tipo e UI em `leads/page.tsx`, gravação de `"converted"` em `clientes/novo/page.tsx` (no momento de criar o Customer — **antes** de qualquer aprovação ou Contract existir), gravação de `"new"` em `VeiculoDetalhe.tsx` (criação pública), contagem em `dashboard/page.tsx` + `recalcularStats` (Cloud Function), e exclusão em massa em `limparDados`. **Zero uso** em `relatorios/page.tsx` e em `firestore.rules`.
+
+**Achado decisivo:** `"converted"` não significa "vendido" — significa só "virou Customer". As etapas do funil desejado (`Aprovado → Contrato → Vendido`) já têm campo próprio em outras entidades: `Customer.approvalStatus` (aprovado), existência de `Contract` (contrato), `Contract.status === "settled"` (vendido). Duplicar isso dentro de `Lead` seria repetir informação que já existe.
+
+**DECISÃO APROVADA: Modelo C.** Enum de `Lead.status` **preservado exatamente como está** (`new/contacted/negotiating/converted/lost`, sem renomear `converted`, sem novos valores). O estágio comercial completo é **derivado** combinando as entidades existentes:
+
+```
+Lead.status + Customer.approvalStatus + existência de Contract + Contract.status
+= estágio atual da jornada
+```
+
+Mesmo princípio já usado no DRE simplificado (Fase 1.4): derivar primeiro, criar estrutura nova só quando houver necessidade real.
+
+**Simulação e Proposta** ficam reservadas para a futura integração de financiamento bancário (Fase 5, BV Open) — hoje não existe nenhum evento real que represente essas etapas, e modelar antecipadamente (`FinancingApplication` ou equivalente) seria construir estrutura fictícia para uma API que ainda não conhecemos. Quando a Fase 5 chegar, novo PRE-CHECK decide a entidade com base na API real do banco.
+
+**Nenhuma alteração estrutural neste bloco** — nem collection nova, nem migration, nem máquina de estados, nem novo status.
 
 ### ⏳ 2.4 Veículos de interesse (plural)
 
