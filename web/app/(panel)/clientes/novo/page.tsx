@@ -3,6 +3,9 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
 import { createCustomer } from "@/lib/firestore/customers";
 import { doc, updateDoc } from "firebase/firestore";
@@ -37,6 +40,34 @@ const inputCls = (error?: string) =>
 // não a cada render, para evitar chamar Date.now() de forma impura durante a renderização.
 const MAX_BIRTH_DATE = new Date(Date.now() - 18 * 365.25 * 86400000).toISOString().split("T")[0];
 
+// Cadastro rápido pelo admin: apenas nome, telefone e e-mail são obrigatórios.
+// CPF, nascimento e endereço serão exigidos do próprio cliente no primeiro acesso.
+const clienteSchema = z.object({
+  name: z.string().refine(
+    (v) => v.trim().length > 0 && v.trim().split(" ").length >= 2,
+    "Informe o nome completo (nome e sobrenome)."
+  ),
+  cpf: z.string().refine((v) => !v || validarCPF(v), "CPF inválido. Verifique os números digitados."),
+  rg: z.string(),
+  birthDate: z.string().refine((v) => !v || isMaiorDeIdade(v), "Cliente deve ter pelo menos 18 anos."),
+  phone: z.string().refine((v) => v.replace(/\D/g, "").length >= 10, "Telefone inválido. Informe com DDD."),
+  email: z
+    .string()
+    .min(1, "E-mail válido é obrigatório (usado para o acesso do cliente).")
+    .regex(/\S+@\S+\.\S+/, "E-mail válido é obrigatório (usado para o acesso do cliente)."),
+  address: z.object({
+    street: z.string(),
+    number: z.string(),
+    complement: z.string(),
+    district: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zip: z.string(),
+  }),
+});
+
+type ClienteFormValues = z.infer<typeof clienteSchema>;
+
 function NovoClienteForm() {
   const router = useRouter();
   const { user } = useAuth();
@@ -44,108 +75,74 @@ function NovoClienteForm() {
   // Pré-preenchimento vindo de um lead da loja virtual
   const leadId = params.get("leadId");
   const [saving, setSaving] = useState(false);
-  const [cepLoading, setCepLoading] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
+  const [cepFound, setCepFound] = useState(false);
 
-  const [form, setForm] = useState({
-    name: params.get("name") ?? "",
-    cpf: "",
-    rg: "",
-    birthDate: "",
-    phone: (params.get("phone") ?? "").replace(/\D/g, "").slice(0, 11),
-    email: params.get("email") ?? "",
-    address: {
-      street: "",
-      number: "",
-      complement: "",
-      district: "",
-      city: "",
-      state: "",
-      zip: "",
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<ClienteFormValues>({
+    resolver: zodResolver(clienteSchema),
+    defaultValues: {
+      name: params.get("name") ?? "",
+      cpf: "",
+      rg: "",
+      birthDate: "",
+      phone: (params.get("phone") ?? "").replace(/\D/g, "").slice(0, 11),
+      email: params.get("email") ?? "",
+      address: {
+        street: "",
+        number: "",
+        complement: "",
+        district: "",
+        city: "",
+        state: "",
+        zip: "",
+      },
     },
   });
 
-  function set(key: string, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setErrors((prev) => ({ ...prev, [key]: "" }));
-  }
-
-  function setAddr(key: string, value: string) {
-    setForm((prev) => ({ ...prev, address: { ...prev.address, [key]: value } }));
-    setErrors((prev) => ({ ...prev, [`addr_${key}`]: "" }));
-  }
-
-  // CPF com máscara e validação em tempo real
-  function handleCPF(raw: string) {
-    const digits = raw.replace(/\D/g, "").slice(0, 11);
-    set("cpf", digits);
-  }
+  const cpf = watch("cpf");
+  const phone = watch("phone");
+  const zip = watch("address.zip");
+  const city = watch("address.city");
 
   // CEP: busca ViaCEP ao completar 8 dígitos
   async function handleCEP(raw: string) {
     const digits = raw.replace(/\D/g, "").slice(0, 8);
-    setAddr("zip", digits);
+    setValue("address.zip", digits, { shouldValidate: true });
+    setCepFound(false);
     if (digits.length === 8) {
       setCepLoading(true);
-      setErrors((prev) => ({ ...prev, addr_zip: "" }));
+      setCepError("");
       const end = await buscarCEP(digits);
       setCepLoading(false);
       if (end) {
-        setForm((prev) => ({
-          ...prev,
-          address: {
-            ...prev.address,
-            zip: digits,
-            street: end.logradouro || prev.address.street,
-            district: end.bairro || prev.address.district,
-            city: end.localidade || prev.address.city,
-            state: end.uf || prev.address.state,
-          },
-        }));
+        if (end.logradouro) setValue("address.street", end.logradouro);
+        if (end.bairro) setValue("address.district", end.bairro);
+        if (end.localidade) setValue("address.city", end.localidade);
+        if (end.uf) setValue("address.state", end.uf);
+        setCepFound(true);
       } else {
-        setErrors((prev) => ({ ...prev, addr_zip: "CEP não encontrado. Preencha o endereço manualmente." }));
+        setCepError("CEP não encontrado. Preencha o endereço manualmente.");
       }
     }
   }
 
-  // Cadastro rápido pelo admin: apenas nome, e-mail e celular são obrigatórios.
-  // CPF, nascimento e endereço serão exigidos do próprio cliente no primeiro acesso.
-  function validate(): boolean {
-    const errs: Record<string, string> = {};
-
-    if (!form.name.trim() || form.name.trim().split(" ").length < 2)
-      errs.name = "Informe o nome completo (nome e sobrenome).";
-
-    if (form.phone.replace(/\D/g, "").length < 10)
-      errs.phone = "Telefone inválido. Informe com DDD.";
-
-    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email))
-      errs.email = "E-mail válido é obrigatório (usado para o acesso do cliente).";
-
-    // Campos opcionais — mas se preenchidos, devem ser válidos
-    if (form.cpf && !validarCPF(form.cpf))
-      errs.cpf = "CPF inválido. Verifique os números digitados.";
-
-    if (form.birthDate && !isMaiorDeIdade(form.birthDate))
-      errs.birthDate = "Cliente deve ter pelo menos 18 anos.";
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(data: ClienteFormValues) {
     if (!user) return;
-    if (!validate()) return;
-
     setSaving(true);
     setSaveError("");
     try {
       const id = await createCustomer({
-        ...form,
-        cpf: form.cpf.replace(/\D/g, ""),
-        phone: form.phone.replace(/\D/g, ""),
+        ...data,
+        cpf: data.cpf.replace(/\D/g, ""),
+        phone: data.phone.replace(/\D/g, ""),
         documents: {},
         createdBy: user.uid,
       });
@@ -172,13 +169,13 @@ function NovoClienteForm() {
     }
   }
 
-  const cpfValido = form.cpf.length === 11 && validarCPF(form.cpf);
-  const cpfInvalido = form.cpf.length === 11 && !validarCPF(form.cpf);
+  const cpfValido = cpf.length === 11 && validarCPF(cpf);
+  const cpfInvalido = cpf.length === 11 && !validarCPF(cpf);
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/clientes" className="text-gray-400 hover:text-gray-600">
+        <Link href="/clientes" aria-label="Voltar para Clientes" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
@@ -194,32 +191,32 @@ function NovoClienteForm() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         {/* Dados Pessoais */}
         <section className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b">Dados Pessoais</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <Field label="Nome Completo *" error={errors.name} id="name">
+              <Field label="Nome Completo *" error={errors.name?.message} id="name">
                 <input
                   id="name"
                   type="text"
-                  value={form.name}
-                  onChange={(e) => set("name", e.target.value)}
-                  className={inputCls(errors.name)}
+                  {...register("name")}
+                  className={inputCls(errors.name?.message)}
                   placeholder="Nome e Sobrenome"
                 />
               </Field>
             </div>
 
-            <Field label="CPF (opcional)" error={errors.cpf} id="cpf">
+            <Field label="CPF (opcional)" error={errors.cpf?.message} id="cpf">
               <div className="relative">
                 <input
                   id="cpf"
                   type="text"
-                  value={formatarCPF(form.cpf)}
-                  onChange={(e) => handleCPF(e.target.value)}
-                  className={`${inputCls(errors.cpf)} font-mono pr-8`}
+                  {...register("cpf")}
+                  value={formatarCPF(cpf)}
+                  onChange={(e) => setValue("cpf", e.target.value.replace(/\D/g, "").slice(0, 11), { shouldValidate: true })}
+                  className={`${inputCls(errors.cpf?.message)} font-mono pr-8`}
                   placeholder="000.000.000-00"
                   maxLength={14}
                 />
@@ -236,46 +233,41 @@ function NovoClienteForm() {
               <input
                 id="rg"
                 type="text"
-                value={form.rg}
-                onChange={(e) => set("rg", e.target.value)}
+                {...register("rg")}
                 className={inputCls()}
                 placeholder="0000000"
               />
             </Field>
 
-            <Field label="Data de Nascimento (opcional)" error={errors.birthDate} id="birthDate">
+            <Field label="Data de Nascimento (opcional)" error={errors.birthDate?.message} id="birthDate">
               <input
                 id="birthDate"
                 type="date"
-                value={form.birthDate}
-                onChange={(e) => set("birthDate", e.target.value)}
-                className={inputCls(errors.birthDate)}
+                {...register("birthDate")}
+                className={inputCls(errors.birthDate?.message)}
                 max={MAX_BIRTH_DATE}
               />
             </Field>
 
-            <Field label="Telefone / WhatsApp *" error={errors.phone} id="phone">
+            <Field label="Telefone / WhatsApp *" error={errors.phone?.message} id="phone">
               <input
                 id="phone"
                 type="tel"
-                value={formatarTelefone(form.phone)}
-                onChange={(e) => {
-                  const d = e.target.value.replace(/\D/g, "").slice(0, 11);
-                  set("phone", d);
-                }}
-                className={`${inputCls(errors.phone)} font-mono`}
+                {...register("phone")}
+                value={formatarTelefone(phone)}
+                onChange={(e) => setValue("phone", e.target.value.replace(/\D/g, "").slice(0, 11), { shouldValidate: true })}
+                className={`${inputCls(errors.phone?.message)} font-mono`}
                 placeholder="(11) 99999-9999"
               />
             </Field>
 
             <div className="col-span-2">
-              <Field label="E-mail *" error={errors.email} id="email">
+              <Field label="E-mail *" error={errors.email?.message} id="email">
                 <input
                   id="email"
                   type="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  className={inputCls()}
+                  {...register("email")}
+                  className={inputCls(errors.email?.message)}
                   placeholder="cliente@email.com"
                 />
               </Field>
@@ -287,14 +279,15 @@ function NovoClienteForm() {
         <section className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b">Endereço</h2>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="CEP (opcional)" error={errors.addr_zip} id="addr_zip">
+            <Field label="CEP (opcional)" error={cepError} id="addr_zip">
               <div className="relative">
                 <input
                   id="addr_zip"
                   type="text"
-                  value={formatarCEP(form.address.zip)}
+                  {...register("address.zip")}
+                  value={formatarCEP(zip)}
                   onChange={(e) => handleCEP(e.target.value)}
-                  className={`${inputCls(errors.addr_zip)} font-mono pr-8`}
+                  className={`${inputCls(cepError)} font-mono pr-8`}
                   placeholder="00000-000"
                   maxLength={9}
                 />
@@ -302,7 +295,7 @@ function NovoClienteForm() {
                   <Loader2 className="absolute right-2 top-2.5 w-4 h-4 text-blue-500 animate-spin" />
                 )}
               </div>
-              {!errors.addr_zip && form.address.city && (
+              {!cepError && cepFound && city && (
                 <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
                   <CheckCircle className="w-3 h-3" /> Endereço encontrado via CEP
                 </p>
@@ -313,21 +306,20 @@ function NovoClienteForm() {
               <input
                 id="addr_state"
                 type="text"
-                value={form.address.state}
-                onChange={(e) => setAddr("state", e.target.value.toUpperCase())}
+                {...register("address.state")}
+                onChange={(e) => setValue("address.state", e.target.value.toUpperCase())}
                 maxLength={2}
                 className={inputCls()}
                 placeholder="SP"
               />
             </Field>
 
-            <Field label="Cidade" error={errors.addr_city} id="addr_city">
+            <Field label="Cidade" id="addr_city">
               <input
                 id="addr_city"
                 type="text"
-                value={form.address.city}
-                onChange={(e) => setAddr("city", e.target.value)}
-                className={inputCls(errors.addr_city)}
+                {...register("address.city")}
+                className={inputCls()}
               />
             </Field>
 
@@ -335,29 +327,26 @@ function NovoClienteForm() {
               <input
                 id="addr_district"
                 type="text"
-                value={form.address.district}
-                onChange={(e) => setAddr("district", e.target.value)}
+                {...register("address.district")}
                 className={inputCls()}
               />
             </Field>
 
-            <Field label="Rua" error={errors.addr_street} id="addr_street">
+            <Field label="Rua" id="addr_street">
               <input
                 id="addr_street"
                 type="text"
-                value={form.address.street}
-                onChange={(e) => setAddr("street", e.target.value)}
-                className={inputCls(errors.addr_street)}
+                {...register("address.street")}
+                className={inputCls()}
               />
             </Field>
 
-            <Field label="Número" error={errors.addr_number} id="addr_number">
+            <Field label="Número" id="addr_number">
               <input
                 id="addr_number"
                 type="text"
-                value={form.address.number}
-                onChange={(e) => setAddr("number", e.target.value)}
-                className={inputCls(errors.addr_number)}
+                {...register("address.number")}
+                className={inputCls()}
               />
             </Field>
 
@@ -366,8 +355,7 @@ function NovoClienteForm() {
                 <input
                   id="addr_complement"
                   type="text"
-                  value={form.address.complement}
-                  onChange={(e) => setAddr("complement", e.target.value)}
+                  {...register("address.complement")}
                   className={inputCls()}
                   placeholder="Apto, bloco, casa..."
                 />
