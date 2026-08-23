@@ -5,9 +5,10 @@ import { collection, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc }
 import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { registrarAuditoria } from "@/lib/audit";
+import { getUsersByRole } from "@/lib/firestore/users";
 import { formatDate } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
-import { Phone, Mail, Car, Clock, CheckCircle2, XCircle, MessageSquare, User, Zap } from "lucide-react";
+import { Phone, Mail, Car, Clock, CheckCircle2, XCircle, MessageSquare, User, UserCog, Zap } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelecaoExclusao, CheckExclusao } from "@/components/admin/SelecaoExclusao";
@@ -24,6 +25,9 @@ interface Lead {
   message?: string;
   status: "new" | "contacted" | "negotiating" | "converted" | "lost";
   userId?: string;
+  // Vendedor responsável pelo acompanhamento — opcional para não quebrar
+  // leads existentes (nenhum deles tem esse campo hoje).
+  sellerId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +46,7 @@ export default function LeadsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [sellers, setSellers] = useState<{ uid: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Lead["status"] | "all">("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -55,6 +60,14 @@ export default function LeadsPage() {
       // conforme a base cresce. Listagem histórica completa fica para um relatório dedicado.
       const snap = await getDocs(query(collection(db, "leads"), orderBy("createdAt", "desc"), limit(300)));
       setLeads(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Lead[]);
+      // A lista de vendedores só é buscada (e o seletor só é exibido) para
+      // admin: `users/{uid}` só permite leitura do próprio doc ou por admin
+      // (firestore.rules:56) — um seller que tentasse listar outros
+      // vendedores teria a query inteira rejeitada, quebrando a página.
+      if (user?.role === "admin") {
+        const sellerUsers = await getUsersByRole("seller");
+        setSellers(sellerUsers.map((s) => ({ uid: s.uid, name: s.name })));
+      }
     } catch (e) {
       console.error("Erro ao carregar leads:", e);
       Sentry.captureException(e);
@@ -79,6 +92,28 @@ export default function LeadsPage() {
         registrarAuditoria(
           "lead_status_alterado",
           `Lead ${lead.name} mudou de "${statusCfg[previousStatus].label}" para "${statusCfg[status].label}"`,
+          user,
+          { tipo: "lead", id }
+        );
+      }
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function updateSellerId(id: string, sellerId: string | null) {
+    setUpdatingId(id);
+    try {
+      const lead = leads.find((l) => l.id === id);
+      const previousSellerId = lead?.sellerId ?? null;
+      await updateDoc(doc(db, "leads", id), { sellerId, updatedAt: new Date().toISOString() });
+      setLeads((prev) => prev.map((l) => l.id === id ? { ...l, sellerId } : l));
+      if (lead) {
+        const nomeAnterior = previousSellerId ? (sellers.find((s) => s.uid === previousSellerId)?.name ?? previousSellerId) : "Sem vendedor";
+        const nomeNovo = sellerId ? (sellers.find((s) => s.uid === sellerId)?.name ?? sellerId) : "Sem vendedor";
+        registrarAuditoria(
+          "lead_vendedor_alterado",
+          `Lead ${lead.name}: vendedor responsável mudou de "${nomeAnterior}" para "${nomeNovo}"`,
           user,
           { tipo: "lead", id }
         );
@@ -228,6 +263,31 @@ export default function LeadsPage() {
                             style={{ color: "var(--accent)" }}>
                         Ver veículo →
                       </Link>
+                    </div>
+
+                    {/* Vendedor responsável — só admin pode atribuir/trocar (a lista de
+                        vendedores só é carregada para admin, ver load()). Seller vê
+                        apenas um indicador somente-leitura. */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <UserCog className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                      {user?.role === "admin" ? (
+                        <select
+                          value={lead.sellerId ?? ""}
+                          disabled={updatingId === lead.id}
+                          onChange={(e) => updateSellerId(lead.id, e.target.value || null)}
+                          className="px-2 py-1 rounded-lg text-xs"
+                          style={{ background: "var(--bg-hover)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                        >
+                          <option value="">Sem vendedor</option>
+                          {sellers.map((s) => (
+                            <option key={s.uid} value={s.uid}>{s.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          {lead.sellerId === user?.uid ? "Vendedor responsável: você" : lead.sellerId ? "Vendedor responsável atribuído" : "Sem vendedor responsável"}
+                        </p>
+                      )}
                     </div>
 
                     {lead.message && (
