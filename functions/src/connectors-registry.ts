@@ -10,7 +10,7 @@
  *   const payment = await connector.generatePaymentRequest({...});
  */
 
-import { PaymentConnector } from '@financer/shared';
+import { PaymentConnector } from '@financer-auto/shared';
 import * as functions from 'firebase-functions';
 
 export class ConnectorRegistry {

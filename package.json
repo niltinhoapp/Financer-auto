@@ -11,7 +11,8 @@
   "scripts": {
     "web": "npm run dev --workspace=web",
     "mobile": "npm run start --workspace=mobile",
-    "functions:build": "npm run build --workspace=functions",
+    "shared:build": "npm run build --workspace=shared",
+    "functions:build": "npm run build --workspace=shared && npm run build --workspace=functions",
     "functions:deploy": "firebase deploy --only functions"
   },
   "devDependencies": {
