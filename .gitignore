@@ -9,3 +9,9 @@ functions/lib/
 firebase-debug.log
 .firebaserc.local
 scripts/serviceAccount.json
+
+.vercel
+
+# Vercel CLI config (contains tokens & credentials)
+.vercel-config/
+*.vercel-config/

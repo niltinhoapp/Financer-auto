@@ -1,38 +1,12 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Vehicle photos — admin and sellers can upload
-    match /vehicles/{vehicleId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // Customer documents — admin and sellers can upload, customer can read own
-    match /customers/{customerId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // Contracts PDFs
-    match /contracts/{contractId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // Receipts
-    match /receipts/{paymentId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // Revision photos
-    match /revisions/{revisionId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+    // Todos os uploads e downloads de arquivos sensíveis passam por Cloud
+    // Functions (Admin SDK + URLs assinadas) — o SDK cliente não acessa
+    // o Storage diretamente. Bloqueio total no acesso direto.
+    // (Fotos de veículos continuam públicas via ACL definida no upload.)
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }
