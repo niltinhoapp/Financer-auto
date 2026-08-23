@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
+import { registrarAuditoria } from "@/lib/audit";
 import { formatDate } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
 import { Phone, Mail, Car, Clock, CheckCircle2, XCircle, MessageSquare, User, Zap } from "lucide-react";
@@ -66,8 +67,22 @@ export default function LeadsPage() {
   async function updateStatus(id: string, status: Lead["status"]) {
     setUpdatingId(id);
     try {
+      // Captura o lead ANTES da escrita — precisamos do status anterior pra
+      // auditoria, e o estado `leads` ainda não foi atualizado neste ponto.
+      const lead = leads.find((l) => l.id === id);
+      const previousStatus = lead?.status;
       await updateDoc(doc(db, "leads", id), { status, updatedAt: new Date().toISOString() });
       setLeads((prev) => prev.map((l) => l.id === id ? { ...l, status } : l));
+      if (lead && previousStatus) {
+        // Sem await, como em todo o resto do app: auditoria é best-effort e
+        // nunca deve travar/reverter a mudança de status que já teve sucesso.
+        registrarAuditoria(
+          "lead_status_alterado",
+          `Lead ${lead.name} mudou de "${statusCfg[previousStatus].label}" para "${statusCfg[status].label}"`,
+          user,
+          { tipo: "lead", id }
+        );
+      }
     } finally {
       setUpdatingId(null);
     }

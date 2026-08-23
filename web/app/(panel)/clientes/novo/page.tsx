@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { createCustomer } from "@/lib/firestore/customers";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { registrarAuditoria } from "@/lib/audit";
 import {
   validarCPF,
   formatarCPF,
@@ -154,6 +155,15 @@ function NovoClienteForm() {
             customerId: id,
             updatedAt: new Date().toISOString(),
           });
+          // Best-effort, sem await — mesmo padrão de todo o app. Não buscamos
+          // o status anterior do lead aqui (evitar leitura extra só pra isso);
+          // o evento em si (conversão) já é a informação relevante.
+          registrarAuditoria(
+            "lead_convertido",
+            `Lead convertido em cliente "${data.name}" (novo customerId: ${id})`,
+            user,
+            { tipo: "lead", id: leadId }
+          );
         } catch (e) {
           console.error("Falha ao marcar lead como convertido:", e);
           Sentry.captureException(e);
