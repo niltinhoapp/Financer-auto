@@ -29,35 +29,55 @@ export default function ContratoLeituraAssinaturaPage() {
   const [signing, setSigning] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     if (!user) return;
     async function load() {
-      const userDoc = await getDoc(doc(db, "users", user!.uid));
-      const customerId = userDoc.data()?.customerId;
-      if (!customerId) { setLoading(false); return; }
+      try {
+        const userDoc = await getDoc(doc(db, "users", user!.uid));
+        const userData = userDoc.data();
+        const customerId = userData?.customerId;
 
-      const cust = await getCustomer(customerId);
-      setCustomer(cust);
+        if (!customerId) {
+          setDebugInfo(`uid=${user!.uid} SEM_customerId userData=${JSON.stringify(userData ?? {})}`);
+          return;
+        }
 
-      const q = query(
-        collection(db, "contracts"),
-        where("customerId", "==", customerId),
-        where("status", "in", ["active", "settled"]),
-        orderBy("createdAt", "desc")
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const c = { id: snap.docs[0].id, ...snap.docs[0].data() } as Contract;
-        setContract(c);
-        const [veh, seller] = await Promise.all([
-          getVehicle(c.vehicleId),
-          getUser(c.sellerId),
-        ]);
-        setVehicle(veh);
-        setSellerName(seller?.name ?? "Vendedor(a) responsável");
+        const cust = await getCustomer(customerId);
+        setCustomer(cust);
+
+        if (!cust) {
+          setDebugInfo(`customerId=${customerId} getCustomer=null`);
+          return;
+        }
+
+        const q = query(
+          collection(db, "contracts"),
+          where("customerId", "==", customerId),
+          where("status", "in", ["active", "settled"]),
+          orderBy("createdAt", "desc")
+        );
+        const snap = await getDocs(q);
+        setDebugInfo(`uid=${user!.uid} customerId=${customerId} contratos=${snap.size}`);
+        if (!snap.empty) {
+          const c = { id: snap.docs[0].id, ...snap.docs[0].data() } as Contract;
+          setContract(c);
+          // Carrega veículo e vendedor em paralelo — falhas não bloqueiam o contrato
+          const [veh, seller] = await Promise.allSettled([
+            getVehicle(c.vehicleId),
+            getUser(c.sellerId),
+          ]);
+          if (veh.status === "fulfilled") setVehicle(veh.value);
+          setSellerName(
+            seller.status === "fulfilled" ? (seller.value?.name ?? "Vendedor(a) responsável") : "Vendedor(a) responsável"
+          );
+        }
+      } catch (err) {
+        console.error("Erro ao carregar contrato do cliente:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, [user]);
@@ -117,12 +137,17 @@ export default function ContratoLeituraAssinaturaPage() {
     );
   }
 
-  if (!contract || !customer || !vehicle) {
+  if (!contract || !customer) {
     return (
       <div className="text-center py-20">
         <FileSignature className="w-12 h-12 mx-auto mb-4 text-gray-300" />
         <h2 className="text-lg font-semibold text-gray-700">Nenhum contrato encontrado</h2>
         <p className="text-sm text-gray-500 mt-1">Entre em contato com a revenda para mais informações.</p>
+        {debugInfo && (
+          <p className="mt-6 text-xs font-mono bg-gray-100 text-gray-500 rounded-lg px-4 py-3 text-left break-all max-w-lg mx-auto">
+            {debugInfo}
+          </p>
+        )}
       </div>
     );
   }
