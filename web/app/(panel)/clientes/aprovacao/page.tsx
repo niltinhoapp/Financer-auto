@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { approveCustomer } from "@/lib/firestore/customers";
 import { useAuth } from "@/hooks/useAuth";
+import { registrarAuditoria } from "@/lib/audit";
 import { formatarCPF, formatarTelefone } from "@/lib/validations";
 import { CheckCircle, XCircle, Clock, User } from "lucide-react";
 import type { Customer } from "@financer-auto/shared";
@@ -35,6 +36,12 @@ export default function AprovacaoClientesPage() {
     if (!user) return;
     setProcessing(id);
     await approveCustomer(id, user.uid, approved, noteMap[id] ?? "");
+    const c = clientes.find((x) => x.id === id);
+    registrarAuditoria(
+      approved ? "cliente_aprovado" : "cliente_rejeitado",
+      `${approved ? "Aprovou" : "Rejeitou"} o cliente ${c?.name ?? id}` + (noteMap[id] ? ` — ${noteMap[id]}` : ""),
+      user, { tipo: "cliente", id },
+    );
     setProcessing(null);
     load();
   }

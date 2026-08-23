@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { createCustomer } from "@/lib/firestore/customers";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import {
   validarCPF,
   formatarCPF,
@@ -30,21 +32,24 @@ const inputCls = (error?: string) =>
     error ? "border-red-400 bg-red-50" : "border-gray-300"
   }`;
 
-export default function NovoClientePage() {
+function NovoClienteForm() {
   const router = useRouter();
   const { user } = useAuth();
+  const params = useSearchParams();
+  // Pré-preenchimento vindo de um lead da loja virtual
+  const leadId = params.get("leadId");
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
-    name: "",
+    name: params.get("name") ?? "",
     cpf: "",
     rg: "",
     birthDate: "",
-    phone: "",
-    email: "",
+    phone: (params.get("phone") ?? "").replace(/\D/g, "").slice(0, 11),
+    email: params.get("email") ?? "",
     address: {
       street: "",
       number: "",
@@ -99,31 +104,26 @@ export default function NovoClientePage() {
     }
   }
 
+  // Cadastro rápido pelo admin: apenas nome, e-mail e celular são obrigatórios.
+  // CPF, nascimento e endereço serão exigidos do próprio cliente no primeiro acesso.
   function validate(): boolean {
     const errs: Record<string, string> = {};
 
     if (!form.name.trim() || form.name.trim().split(" ").length < 2)
       errs.name = "Informe o nome completo (nome e sobrenome).";
 
-    if (!validarCPF(form.cpf))
-      errs.cpf = "CPF inválido. Verifique os números digitados.";
-
-    if (!form.birthDate)
-      errs.birthDate = "Data de nascimento obrigatória.";
-    else if (!isMaiorDeIdade(form.birthDate))
-      errs.birthDate = "Cliente deve ter pelo menos 18 anos.";
-
     if (form.phone.replace(/\D/g, "").length < 10)
       errs.phone = "Telefone inválido. Informe com DDD.";
 
-    if (!form.address.zip || form.address.zip.length < 8)
-      errs.addr_zip = "CEP obrigatório.";
-    if (!form.address.city.trim())
-      errs.addr_city = "Cidade obrigatória.";
-    if (!form.address.street.trim())
-      errs.addr_street = "Rua obrigatória.";
-    if (!form.address.number.trim())
-      errs.addr_number = "Número obrigatório.";
+    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email))
+      errs.email = "E-mail válido é obrigatório (usado para o acesso do cliente).";
+
+    // Campos opcionais — mas se preenchidos, devem ser válidos
+    if (form.cpf && !validarCPF(form.cpf))
+      errs.cpf = "CPF inválido. Verifique os números digitados.";
+
+    if (form.birthDate && !isMaiorDeIdade(form.birthDate))
+      errs.birthDate = "Cliente deve ter pelo menos 18 anos.";
 
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -144,6 +144,18 @@ export default function NovoClientePage() {
         documents: {},
         createdBy: user.uid,
       });
+      // Veio de um lead da loja? Marca como convertido (não bloqueia o fluxo se falhar)
+      if (leadId) {
+        try {
+          await updateDoc(doc(db, "leads", leadId), {
+            status: "converted",
+            customerId: id,
+            updatedAt: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.error("Falha ao marcar lead como convertido:", e);
+        }
+      }
       router.push(`/clientes/${id}`);
     } catch {
       setSaveError("Erro ao salvar cliente. Tente novamente.");
@@ -166,6 +178,11 @@ export default function NovoClientePage() {
           <p className="text-xs text-gray-500 mt-0.5">
             Após o cadastro, o cliente ficará <span className="font-medium text-amber-600">pendente de aprovação</span> pelo administrador.
           </p>
+          {leadId && (
+            <p className="text-xs mt-1 font-medium text-emerald-600">
+              ✓ Dados importados do lead — ao salvar, o lead será marcado como convertido.
+            </p>
+          )}
         </div>
       </div>
 
@@ -186,7 +203,7 @@ export default function NovoClientePage() {
               </Field>
             </div>
 
-            <Field label="CPF *" error={errors.cpf}>
+            <Field label="CPF (opcional)" error={errors.cpf}>
               <div className="relative">
                 <input
                   type="text"
@@ -215,7 +232,7 @@ export default function NovoClientePage() {
               />
             </Field>
 
-            <Field label="Data de Nascimento *" error={errors.birthDate}>
+            <Field label="Data de Nascimento (opcional)" error={errors.birthDate}>
               <input
                 type="date"
                 value={form.birthDate}
@@ -239,7 +256,7 @@ export default function NovoClientePage() {
             </Field>
 
             <div className="col-span-2">
-              <Field label="E-mail">
+              <Field label="E-mail *" error={errors.email}>
                 <input
                   type="email"
                   value={form.email}
@@ -256,7 +273,7 @@ export default function NovoClientePage() {
         <section className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b">Endereço</h2>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="CEP *" error={errors.addr_zip}>
+            <Field label="CEP (opcional)" error={errors.addr_zip}>
               <div className="relative">
                 <input
                   type="text"
@@ -288,7 +305,7 @@ export default function NovoClientePage() {
               />
             </Field>
 
-            <Field label="Cidade *" error={errors.addr_city}>
+            <Field label="Cidade" error={errors.addr_city}>
               <input
                 type="text"
                 value={form.address.city}
@@ -306,7 +323,7 @@ export default function NovoClientePage() {
               />
             </Field>
 
-            <Field label="Rua *" error={errors.addr_street}>
+            <Field label="Rua" error={errors.addr_street}>
               <input
                 type="text"
                 value={form.address.street}
@@ -315,7 +332,7 @@ export default function NovoClientePage() {
               />
             </Field>
 
-            <Field label="Número *" error={errors.addr_number}>
+            <Field label="Número" error={errors.addr_number}>
               <input
                 type="text"
                 value={form.address.number}
@@ -371,5 +388,19 @@ export default function NovoClientePage() {
         </div>
       </form>
     </div>
+  );
+}
+
+// useSearchParams exige Suspense boundary no App Router
+export default function NovoClientePage() {
+  return (
+    <Suspense fallback={
+      <div className="p-8 flex justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-4"
+             style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }} />
+      </div>
+    }>
+      <NovoClienteForm />
+    </Suspense>
   );
 }
