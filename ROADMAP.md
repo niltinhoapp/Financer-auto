@@ -94,7 +94,17 @@ PRE-CHECK (commit `c631a47`) confirmou infraestrutura reaproveitável: `audit/{l
 
 Falha de auditoria não corrompe estado: `registrarAuditoria()` já engolia seus próprios erros (nunca rejeita a Promise) e só é chamada depois da escrita principal ter sucesso — verificado por rastreamento de código, não só assumido.
 
-### ⏳ 2.2 Vendedor responsável (`sellerId`) — próximo bloco
+### ✅ 2.2 Vendedor responsável (`sellerId`) — CONCLUÍDO (2026-08-23)
+
+PRE-CHECK (commit `6154472`) confirmou: `Lead` não tem tipo compartilhado (é `interface` local em `leads/page.tsx`) — estendida diretamente. `Contract.sellerId` nunca é escolhido por dropdown (sempre auto-atribuído a `user.uid` de quem cria o contrato) — não existe componente de seleção de vendedor reutilizável; segui o padrão mais próximo (`<select>` inline de `comissoes/page.tsx`).
+
+`sellerId?: string | null` — totalmente opcional, leads existentes ficam com o campo ausente (tratado graciosamente em toda a UI).
+
+**Regressão pega antes de subir:** a primeira versão buscava a lista de vendedores (`getUsersByRole`) incondicionalmente em `load()`. Como `users/{uid}` só permite leitura do próprio doc ou por admin, essa query **falha inteira** pra um seller (que tem `leads` no próprio menu!) — quebraria a página pra ele. Corrigido: a busca/exibição do seletor só acontece pra `role === "admin"`; seller vê um indicador somente-leitura (comparação de IDs, sem leitura cross-user). **Nenhuma Firestore Rule foi tocada** — evitei exatamente o tipo de mudança de RLS que o protocolo manda parar e perguntar antes.
+
+Auditoria: `updateSellerId()` segue o mesmo padrão fire-and-forget-após-sucesso de `updateStatus()` (Bloco 2.1) — `registrarAuditoria("lead_vendedor_alterado", ...)`.
+
+**Não implementado agora, documentado como oportunidade futura:** transportar `lead.sellerId` automaticamente pro `contract.sellerId` no momento da conversão. Precisa de PRE-CHECK próprio (decidir se sobrescreve o auto-assign atual do criador do contrato, ou só pré-preenche).
 
 ### ⏳ 2.3 Pipeline/status — só PRE-CHECK (decisão de modelo, sem implementar ainda)
 
