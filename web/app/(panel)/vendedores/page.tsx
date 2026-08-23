@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { getUsersByRole } from "@/lib/firestore/users";
 import { getContracts } from "@/lib/firestore/contracts";
 import { criarVendedorFn, excluirVendedorFn } from "@/lib/functions";
@@ -35,6 +36,8 @@ export default function VendedoresPage() {
       setStats(byUid);
     } catch (err) {
       console.error("Erro ao carregar vendedores:", err);
+      Sentry.captureException(err);
+      toast("Não foi possível carregar os vendedores. Tente novamente.", "error");
       setSellers([]);
     } finally {
       setLoading(false);
@@ -60,6 +63,8 @@ export default function VendedoresPage() {
       setForm({ name: "", email: "", phone: "", password: "" });
       load();
     } catch (err: unknown) {
+      console.error("Erro ao criar vendedor:", err);
+      Sentry.captureException(err);
       const message =
         (err as { message?: string; details?: string })?.details ??
         (err as Error)?.message ??
@@ -87,6 +92,8 @@ export default function VendedoresPage() {
       }
       load();
     } catch (err: unknown) {
+      console.error("Erro ao excluir vendedor:", err);
+      Sentry.captureException(err);
       const message =
         (err as { details?: string; message?: string })?.details ??
         (err as Error)?.message ??

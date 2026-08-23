@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, getDoc, doc } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { uploadDocumentoFn, gerarUrlAssinadaFn } from "@/lib/functions";
@@ -70,12 +71,16 @@ export default function DocumentosPage() {
         });
 
         setDocs(DOCS.map((d) => uploaded[d.tipo] ?? { tipo: d.tipo, status: "missing" }));
+      } catch (e) {
+        console.error("Erro ao carregar documentos:", e);
+        Sentry.captureException(e);
+        toast("Não foi possível carregar seus documentos. Tente novamente.", "error");
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [user]);
+  }, [user, toast]);
 
   async function handleUpload(tipo: string, file: File) {
     if (!customerId) return;
@@ -97,6 +102,7 @@ export default function DocumentosPage() {
       );
     } catch (err) {
       console.error("Erro ao enviar documento:", err);
+      Sentry.captureException(err);
       toast("Erro ao enviar documento. Tente novamente.", "error");
       setDocs((prev) => prev.map((d) => d.tipo === tipo ? { ...d, uploading: false } : d));
     }

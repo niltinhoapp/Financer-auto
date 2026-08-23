@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { getCustomers } from "@/lib/firestore/customers";
 import { useAuth } from "@/hooks/useAuth";
 import { excluirClienteFn } from "@/lib/functions";
 import { useSelecaoExclusao, CheckExclusao } from "@/components/admin/SelecaoExclusao";
+import { useToast } from "@/components/ui/Toast";
 import { formatCPF, formatPhone } from "@/lib/utils";
 import type { Customer } from "@financer-auto/shared";
 import { Plus, Search, Users, CheckCircle, Clock, XCircle, Phone, MapPin, ShieldAlert } from "lucide-react";
@@ -18,14 +20,25 @@ const approvalCfg: Record<string, { label: string; bg: string; color: string; ic
 
 export default function ClientesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  function load() {
-    return getCustomers().then(setCustomers).finally(() => setLoading(false));
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await getCustomers();
+      setCustomers(data);
+    } catch (e) {
+      console.error("Erro ao carregar clientes:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar os clientes. Tente novamente.", "error");
+    } finally {
+      setLoading(false);
+    }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { Promise.resolve().then(() => load()); }, []);
 
   const sel = useSelecaoExclusao(
     async (id) => { await excluirClienteFn({ customerId: id }); },

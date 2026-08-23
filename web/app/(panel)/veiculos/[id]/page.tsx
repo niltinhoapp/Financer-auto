@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { getVehicle, updateVehicleStatus } from "@/lib/firestore/vehicles";
 import { updateDoc, doc } from "firebase/firestore";
@@ -63,6 +64,8 @@ export default function VeiculoDetailPage() {
       toast("Veículo excluído.", "success");
       router.replace("/veiculos");
     } catch (e) {
+      console.error("Erro ao excluir veículo:", e);
+      Sentry.captureException(e);
       toast(e instanceof Error ? e.message : "Erro ao excluir veículo.", "error");
       setDeleting(false);
       setConfirmDelete(false);
@@ -71,9 +74,16 @@ export default function VeiculoDetailPage() {
 
   async function load() {
     if (!id) return;
-    const v = await getVehicle(id);
-    setVehicle(v);
-    setLoading(false);
+    try {
+      const v = await getVehicle(id);
+      setVehicle(v);
+    } catch (e) {
+      console.error("Erro ao carregar veículo:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar o veículo. Tente novamente.", "error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -110,6 +120,7 @@ export default function VeiculoDetailPage() {
         newUrls.push(result.data.url);
       } catch (err) {
         console.error("Erro ao fazer upload:", err);
+        Sentry.captureException(err);
       }
     }
 

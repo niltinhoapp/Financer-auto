@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { getContracts } from "@/lib/firestore/contracts";
 import { getCustomers } from "@/lib/firestore/customers";
 import { getVehicles } from "@/lib/firestore/vehicles";
@@ -11,6 +12,7 @@ import { Plus, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { excluirContratoFn } from "@/lib/functions";
 import { useSelecaoExclusao, CheckExclusao } from "@/components/admin/SelecaoExclusao";
+import { useToast } from "@/components/ui/Toast";
 
 const statusLabel: Record<string, string> = {
   active: "Ativo",
@@ -28,6 +30,7 @@ const statusColor: Record<string, string> = {
 
 export default function ContratosPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [customers, setCustomers] = useState<Record<string, Customer>>({});
   const [vehicles, setVehicles] = useState<Record<string, Vehicle>>({});
@@ -35,16 +38,24 @@ export default function ContratosPage() {
   const [filterStatus, setFilterStatus] = useState("");
 
   async function load() {
-    const filters = user?.role === "seller" ? { sellerId: user!.uid } : {};
-    const [contracts, customerList, vehicleList] = await Promise.all([
-      getContracts(filters),
-      getCustomers(),
-      getVehicles(),
-    ]);
-    setContracts(contracts);
-    setCustomers(Object.fromEntries(customerList.map((c) => [c.id, c])));
-    setVehicles(Object.fromEntries(vehicleList.map((v) => [v.id, v])));
-    setLoading(false);
+    setLoading(true);
+    try {
+      const filters = user?.role === "seller" ? { sellerId: user!.uid } : {};
+      const [contracts, customerList, vehicleList] = await Promise.all([
+        getContracts(filters),
+        getCustomers(),
+        getVehicles(),
+      ]);
+      setContracts(contracts);
+      setCustomers(Object.fromEntries(customerList.map((c) => [c.id, c])));
+      setVehicles(Object.fromEntries(vehicleList.map((v) => [v.id, v])));
+    } catch (e) {
+      console.error("Erro ao carregar contratos:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar os contratos. Tente novamente.", "error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {

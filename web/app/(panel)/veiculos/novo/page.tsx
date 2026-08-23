@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { useAuth } from "@/hooks/useAuth";
 import { createVehicle } from "@/lib/firestore/vehicles";
 import { updateDoc, doc } from "firebase/firestore";
@@ -95,7 +96,9 @@ export default function NovoVeiculoPage() {
         const result = await uploadFotoVeiculoFn({ base64, fileName: p.file.name, vehicleId });
         urls.push(result.data.url);
         setPhotos((prev) => prev.map((x, j) => j === i ? { ...x, uploading: false, url: result.data.url } : x));
-      } catch {
+      } catch (e) {
+        console.error("Erro ao enviar foto do veículo:", e);
+        Sentry.captureException(e);
         setPhotos((prev) => prev.map((x, j) => j === i ? { ...x, uploading: false, error: true } : x));
       }
     }
@@ -125,7 +128,9 @@ export default function NovoVeiculoPage() {
       }
 
       router.push(`/veiculos/${id}`);
-    } catch {
+    } catch (e) {
+      console.error("Erro ao salvar veículo:", e);
+      Sentry.captureException(e);
       setError("Erro ao salvar veículo. Tente novamente.");
     } finally {
       setSaving(false);

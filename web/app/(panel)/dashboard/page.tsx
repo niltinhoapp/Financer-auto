@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy, limit, where, collectionGroup, getCountFromServer } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/utils";
 import { todasReceitas } from "@/lib/receitas";
+import { useToast } from "@/components/ui/Toast";
 import type { Contract } from "@financer-auto/shared";
 import Link from "next/link";
 import {
@@ -83,6 +85,7 @@ function getLast6Months(): string[] {
 }
 
 export default function DashboardPage() {
+  const { toast } = useToast();
   const [kpis, setKpis] = useState<KPIs | null>(null);
   const [revenueChart, setRevenueChart] = useState<MonthData[]>([]);
   const [contractsPie, setContractsPie] = useState<PieData[]>([]);
@@ -259,13 +262,15 @@ export default function DashboardPage() {
         ].filter((d) => d.value > 0));
 
       } catch (e) {
-        console.error(e);
+        console.error("Erro ao carregar dashboard:", e);
+        Sentry.captureException(e);
+        toast("Não foi possível carregar os dados do dashboard. Tente novamente.", "error");
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [toast]);
 
   if (loading) {
     return (

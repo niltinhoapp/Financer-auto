@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { getCustomer, updateCustomer } from "@/lib/firestore/customers";
 import { getContracts } from "@/lib/firestore/contracts";
@@ -89,6 +90,10 @@ export default function ClienteDetailPage() {
     try {
       const snap = await getDocs(collection(db, "customers", id, "documents"));
       setCustomerDocs(snap.docs.map((d) => ({ tipo: d.id, ...d.data() })) as typeof customerDocs);
+    } catch (e) {
+      console.error("Erro ao carregar documentos do cliente:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar os documentos do cliente. Tente novamente.", "error");
     } finally {
       setLoadingDocs(false);
     }
@@ -99,9 +104,13 @@ export default function ClienteDetailPage() {
     Promise.all([getCustomer(id), getContracts({ customerId: id })]).then(([c, ct]) => {
       setCustomer(c);
       setContracts(ct);
-      setLoading(false);
-    });
+    }).catch((e) => {
+      console.error("Erro ao carregar cliente:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar os dados do cliente. Tente novamente.", "error");
+    }).finally(() => setLoading(false));
     Promise.resolve().then(() => loadDocs());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function handleDocAction(tipo: string, action: "approved" | "rejected") {
@@ -139,6 +148,8 @@ export default function ClienteDetailPage() {
         tempPassword: (res.data as { resetLink: string; tempPassword?: string }).tempPassword,
       });
     } catch (e) {
+      console.error("Erro ao gerar acesso do cliente:", e);
+      Sentry.captureException(e);
       setAccessError(e instanceof Error ? e.message : "Erro ao gerar acesso. Tente novamente.");
     } finally {
       setGenerating(false);
@@ -202,6 +213,8 @@ export default function ClienteDetailPage() {
       setCustomer(updated);
       setEditing(false);
     } catch (err: unknown) {
+      console.error("Erro ao salvar cliente:", err);
+      Sentry.captureException(err);
       setEditError((err as Error)?.message ?? "Erro ao salvar alterações. Tente novamente.");
     } finally {
       setSavingEdit(false);
@@ -713,6 +726,8 @@ export default function ClienteDetailPage() {
                       toast("Cliente excluído.", "success");
                       router.replace("/clientes");
                     } catch (e) {
+                      console.error("Erro ao excluir cliente:", e);
+                      Sentry.captureException(e);
                       toast(e instanceof Error ? e.message : "Erro ao excluir cliente.", "error");
                       setDeleting(false);
                       setConfirmDelete(false);

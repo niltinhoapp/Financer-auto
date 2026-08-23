@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { collection, query, where, getDocs, orderBy, getDoc, doc } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { uploadComprovanteFn } from "@/lib/functions";
 import { useAuth } from "@/hooks/useAuth";
@@ -103,12 +104,14 @@ export default function MinhaAreaPage() {
         const msg = (err as Error)?.message ?? String(err);
         setDebugInfo(`ERRO: ${msg}`);
         console.error("Erro ao carregar dados da área do cliente:", err);
+        Sentry.captureException(err);
+        toast("Não foi possível carregar seus dados. Tente novamente.", "error");
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [user]);
+  }, [user, toast]);
 
   const today = todayISO();
 
@@ -175,6 +178,7 @@ export default function MinhaAreaPage() {
       setMyRequests(reqs);
     } catch (err) {
       console.error("Erro ao criar solicitação:", err);
+      Sentry.captureException(err);
       toast("Erro ao enviar solicitação. Tente novamente.", "error");
     } finally {
       setSubmitting(false);

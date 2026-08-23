@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { collection, addDoc, getDocs, query, where, getDoc, doc, orderBy } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/utils";
@@ -77,12 +78,16 @@ export default function TrocaPage() {
           orderBy("createdAt", "desc")
         ));
         setRequests(reqSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as ExchangeReq[]);
+      } catch (e) {
+        console.error("Erro ao carregar solicitações de troca:", e);
+        Sentry.captureException(e);
+        toast("Não foi possível carregar suas solicitações de troca. Tente novamente.", "error");
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [user]);
+  }, [user, toast]);
 
   async function handleSubmit() {
     if (!customerId || !contractId || !form.reason.trim()) return;
@@ -105,7 +110,8 @@ export default function TrocaPage() {
       const reqSnap = await getDocs(query(collection(db, "exchangeRequests"), where("customerId", "==", customerId), orderBy("createdAt", "desc")));
       setRequests(reqSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as ExchangeReq[]);
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao enviar solicitação de troca:", err);
+      Sentry.captureException(err);
       toast("Erro ao enviar solicitação. Tente novamente.", "error");
     } finally {
       setSubmitting(false);

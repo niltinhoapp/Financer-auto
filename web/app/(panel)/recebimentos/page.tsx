@@ -5,6 +5,7 @@ import {
   collectionGroup, getDocs, query, orderBy, getDoc, doc,
   updateDoc, addDoc, collection, where,
 } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { formatCurrency, formatDate, daysBetween, todayISO } from "@/lib/utils";
 import { calcularValorAtualizado } from "@/lib/financiamento";
@@ -105,44 +106,57 @@ export default function RecebimentosPage() {
   const [registering, setRegistering] = useState(false);
 
   async function loadInstallments() {
-    const [snap, contractsSnap, customersSnap] = await Promise.all([
-      getDocs(query(collectionGroup(db, "installments"), orderBy("dueDate", "asc"))),
-      getDocs(collection(db, "contracts")),
-      getDocs(collection(db, "customers")),
-    ]);
+    setLoading(true);
+    try {
+      const [snap, contractsSnap, customersSnap] = await Promise.all([
+        getDocs(query(collectionGroup(db, "installments"), orderBy("dueDate", "asc"))),
+        getDocs(collection(db, "contracts")),
+        getDocs(collection(db, "customers")),
+      ]);
 
-    const customerById: Record<string, { name?: string; phone?: string }> = {};
-    customersSnap.docs.forEach((d) => { customerById[d.id] = d.data(); });
+      const customerById: Record<string, { name?: string; phone?: string }> = {};
+      customersSnap.docs.forEach((d) => { customerById[d.id] = d.data(); });
 
-    const contractById: Record<
-      string,
-      { customerId?: string; penaltyRate?: number; dailyInterestRate?: number }
-    > = {};
-    contractsSnap.docs.forEach((d) => { contractById[d.id] = d.data(); });
+      const contractById: Record<
+        string,
+        { customerId?: string; penaltyRate?: number; dailyInterestRate?: number }
+      > = {};
+      contractsSnap.docs.forEach((d) => { contractById[d.id] = d.data(); });
 
-    const data = snap.docs.map((d) => {
-      const contractId = d.ref.parent.parent!.id;
-      const contract = contractById[contractId];
-      const customer = contract?.customerId ? customerById[contract.customerId] : undefined;
-      return {
-        id: d.id,
-        contractId,
-        ...d.data(),
-        customerName: customer?.name,
-        customerPhone: customer?.phone,
-        customerId: contract?.customerId,
-        // taxas reais do contrato (multa e juros diários)
-        penaltyRate: contract?.penaltyRate,
-        dailyRate: contract?.dailyInterestRate,
-      };
-    }) as InstallmentRow[];
-    setRows(data);
-    setLoading(false);
+      const data = snap.docs.map((d) => {
+        const contractId = d.ref.parent.parent!.id;
+        const contract = contractById[contractId];
+        const customer = contract?.customerId ? customerById[contract.customerId] : undefined;
+        return {
+          id: d.id,
+          contractId,
+          ...d.data(),
+          customerName: customer?.name,
+          customerPhone: customer?.phone,
+          customerId: contract?.customerId,
+          // taxas reais do contrato (multa e juros diários)
+          penaltyRate: contract?.penaltyRate,
+          dailyRate: contract?.dailyInterestRate,
+        };
+      }) as InstallmentRow[];
+      setRows(data);
+    } catch (e) {
+      console.error("Erro ao carregar parcelas:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar as parcelas. Tente novamente.", "error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function loadRequests() {
     setLoadingReqs(true);
     try { setRequests(await getPendingPaymentRequests()); }
+    catch (e) {
+      console.error("Erro ao carregar solicitações de pagamento:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar as solicitações de pagamento. Tente novamente.", "error");
+    }
     finally { setLoadingReqs(false); }
   }
 
@@ -155,7 +169,11 @@ export default function RecebimentosPage() {
         orderBy("createdAt", "desc"),
       ));
       setAvisos(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as AvisoNotification));
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error("Erro ao carregar avisos:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar os avisos. Tente novamente.", "error");
+    }
     finally { setLoadingAvisos(false); }
   }
 
@@ -195,7 +213,10 @@ export default function RecebimentosPage() {
       if (todas.length > 0 && todas.every((s) => s === "paid" || s === "renegotiated")) {
         await updateDoc(doc(db, "contracts", contractId), { status: "settled", updatedAt: new Date().toISOString() });
       }
-    } catch (e) { console.error("verificarQuitacao:", e); }
+    } catch (e) {
+      console.error("verificarQuitacao:", e);
+      Sentry.captureException(e);
+    }
   }
 
   async function handleConfirm(req: PaymentRequest) {
@@ -245,7 +266,8 @@ export default function RecebimentosPage() {
       await loadRequests();
       await loadInstallments();
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao confirmar pagamento:", err);
+      Sentry.captureException(err);
       toast("Erro ao confirmar pagamento.", "error");
     } finally {
       setConfirmingId(null);
@@ -276,6 +298,10 @@ export default function RecebimentosPage() {
 
       setRejectReason("");
       await loadRequests();
+    } catch (err) {
+      console.error("Erro ao recusar pagamento:", err);
+      Sentry.captureException(err);
+      toast("Erro ao recusar pagamento.", "error");
     } finally { setRejectingId(null); }
   }
 
@@ -308,7 +334,8 @@ export default function RecebimentosPage() {
       setRegisterNotes("");
       await loadInstallments();
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao registrar pagamento:", err);
+      Sentry.captureException(err);
       toast("Erro ao registrar pagamento.", "error");
     } finally { setRegistering(false); }
   }

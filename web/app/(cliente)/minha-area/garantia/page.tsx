@@ -3,17 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getDoc, doc } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { getWarrantyByContract } from "@/lib/firestore/warranties";
 import { getRevisionsByContract } from "@/lib/firestore/revisions";
 import { getWorkshop } from "@/lib/firestore/workshops";
 import { formatDate } from "@/lib/utils";
+import { useToast } from "@/components/ui/Toast";
 import type { Contract, Warranty, Revision, Workshop } from "@financer-auto/shared";
 import { ArrowLeft, ShieldCheck, Wrench, Phone, MapPin, AlertCircle, CheckCircle2, Calendar } from "lucide-react";
 
 export default function GarantiaPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [contract, setContract] = useState<Contract | null>(null);
   const [warranty, setWarranty] = useState<Warranty | null>(null);
   const [revisions, setRevisions] = useState<Revision[]>([]);
@@ -53,12 +56,14 @@ export default function GarantiaPage() {
         setWorkshops(map);
       } catch (err) {
         console.error("Erro ao carregar garantia do cliente:", err);
+        Sentry.captureException(err);
+        toast("Não foi possível carregar as informações de garantia. Tente novamente.", "error");
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [user]);
+  }, [user, toast]);
 
   if (loading) {
     return (

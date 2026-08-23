@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { getVehicles } from "@/lib/firestore/vehicles";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { excluirVeiculoFn } from "@/lib/functions";
 import { useSelecaoExclusao, CheckExclusao } from "@/components/admin/SelecaoExclusao";
+import { useToast } from "@/components/ui/Toast";
 import type { Vehicle, VehicleStatus } from "@financer-auto/shared";
 import { Plus, Search, Car, Gauge, Calendar } from "lucide-react";
 
@@ -19,15 +21,26 @@ const statusCfg: Record<VehicleStatus, { label: string; bg: string; color: strin
 
 export default function VeiculosPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  function load() {
-    return getVehicles().then(setVehicles).finally(() => setLoading(false));
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await getVehicles();
+      setVehicles(data);
+    } catch (e) {
+      console.error("Erro ao carregar veículos:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar os veículos. Tente novamente.", "error");
+    } finally {
+      setLoading(false);
+    }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { Promise.resolve().then(() => load()); }, []);
 
   const sel = useSelecaoExclusao(
     async (id) => { await excluirVeiculoFn({ vehicleId: id }); },

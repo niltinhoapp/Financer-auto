@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy, limit, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { formatDate } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
@@ -9,6 +10,7 @@ import { Phone, Mail, Car, Clock, CheckCircle2, XCircle, MessageSquare, User, Za
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelecaoExclusao, CheckExclusao } from "@/components/admin/SelecaoExclusao";
+import { useToast } from "@/components/ui/Toast";
 
 interface Lead {
   id: string;
@@ -37,6 +39,7 @@ const STATUSES = Object.keys(statusCfg) as Lead["status"][];
 
 export default function LeadsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Lead["status"] | "all">("all");
@@ -51,6 +54,10 @@ export default function LeadsPage() {
       // conforme a base cresce. Listagem histórica completa fica para um relatório dedicado.
       const snap = await getDocs(query(collection(db, "leads"), orderBy("createdAt", "desc"), limit(300)));
       setLeads(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Lead[]);
+    } catch (e) {
+      console.error("Erro ao carregar leads:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar os leads. Tente novamente.", "error");
     } finally {
       setLoading(false);
     }

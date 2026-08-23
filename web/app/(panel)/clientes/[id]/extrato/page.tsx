@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { getCustomer } from "@/lib/firestore/customers";
 import { getContracts, getInstallments, getPayments } from "@/lib/firestore/contracts";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -39,55 +40,63 @@ export default function ExtratoClientePage() {
   useEffect(() => {
     async function load() {
       if (!id) return;
-      const cust = await getCustomer(id);
-      setCustomer(cust);
-      const conts = await getContracts({ customerId: id });
-      setContracts(conts);
+      setLoading(true);
+      try {
+        const cust = await getCustomer(id);
+        setCustomer(cust);
+        const conts = await getContracts({ customerId: id });
+        setContracts(conts);
 
-      const all: Lancamento[] = [];
-      let aberto = 0;
-      for (const c of conts) {
-        const [installments, payments] = await Promise.all([
-          getInstallments(c.id),
-          getPayments(c.id),
-        ]);
-        for (const inst of installments) {
-          if (inst.status !== "paid" && inst.status !== "renegotiated") aberto += inst.value;
-          all.push({
-            data: inst.dueDate,
-            descricao: `Parcela ${inst.number}/${c.installmentsCount} — Contrato ${c.id.slice(0, 8)}`,
-            contractId: c.id,
-            tipo: "parcela",
-            valor: inst.value,
-            status: inst.status,
-          });
+        const all: Lancamento[] = [];
+        let aberto = 0;
+        for (const c of conts) {
+          const [installments, payments] = await Promise.all([
+            getInstallments(c.id),
+            getPayments(c.id),
+          ]);
+          for (const inst of installments) {
+            if (inst.status !== "paid" && inst.status !== "renegotiated") aberto += inst.value;
+            all.push({
+              data: inst.dueDate,
+              descricao: `Parcela ${inst.number}/${c.installmentsCount} — Contrato ${c.id.slice(0, 8)}`,
+              contractId: c.id,
+              tipo: "parcela",
+              valor: inst.value,
+              status: inst.status,
+            });
+          }
+          for (const p of payments) {
+            all.push({
+              data: p.paidAt,
+              descricao: `Pagamento recebido — Contrato ${c.id.slice(0, 8)}`,
+              contractId: c.id,
+              tipo: "pagamento",
+              valor: p.amount,
+            });
+          }
+          if (c.downPayment > 0) {
+            all.push({
+              data: c.createdAt.split("T")[0],
+              descricao: `Entrada — Contrato ${c.id.slice(0, 8)}`,
+              contractId: c.id,
+              tipo: "pagamento",
+              valor: c.downPayment,
+            });
+          }
         }
-        for (const p of payments) {
-          all.push({
-            data: p.paidAt,
-            descricao: `Pagamento recebido — Contrato ${c.id.slice(0, 8)}`,
-            contractId: c.id,
-            tipo: "pagamento",
-            valor: p.amount,
-          });
-        }
-        if (c.downPayment > 0) {
-          all.push({
-            data: c.createdAt.split("T")[0],
-            descricao: `Entrada — Contrato ${c.id.slice(0, 8)}`,
-            contractId: c.id,
-            tipo: "pagamento",
-            valor: c.downPayment,
-          });
-        }
+        all.sort((a, b) => a.data.localeCompare(b.data));
+        setLancamentos(all);
+        setSaldoAberto(aberto);
+      } catch (e) {
+        console.error("Erro ao carregar extrato do cliente:", e);
+        Sentry.captureException(e);
+        toast("Não foi possível carregar o extrato. Tente novamente.", "error");
+      } finally {
+        setLoading(false);
       }
-      all.sort((a, b) => a.data.localeCompare(b.data));
-      setLancamentos(all);
-      setSaldoAberto(aberto);
-      setLoading(false);
     }
     load();
-  }, [id]);
+  }, [id, toast]);
 
   const totalContratado = contracts.reduce((acc, c) => acc + c.salePrice, 0);
   const totalPago = lancamentos.filter((l) => l.tipo === "pagamento").reduce((a, l) => a + l.valor, 0);
@@ -122,6 +131,7 @@ export default function ExtratoClientePage() {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Erro ao gerar extrato:", e);
+      Sentry.captureException(e);
       toast("Erro ao gerar PDF do extrato.", "error");
     }
   }

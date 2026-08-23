@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { approveCustomer } from "@/lib/firestore/customers";
 import { useAuth } from "@/hooks/useAuth";
 import { registrarAuditoria } from "@/lib/audit";
 import { formatarCPF, formatarTelefone } from "@/lib/validations";
+import { useToast } from "@/components/ui/Toast";
 import { CheckCircle, XCircle, Clock, User } from "lucide-react";
 import type { Customer } from "@financer-auto/shared";
 
 export default function AprovacaoClientesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [clientes, setClientes] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
@@ -20,14 +23,21 @@ export default function AprovacaoClientesPage() {
 
   async function load() {
     setLoading(true);
-    const q = query(
-      collection(db, "customers"),
-      where("approvalStatus", "==", tab),
-      orderBy("createdAt", "desc")
-    );
-    const snap = await getDocs(q);
-    setClientes(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Customer)));
-    setLoading(false);
+    try {
+      const q = query(
+        collection(db, "customers"),
+        where("approvalStatus", "==", tab),
+        orderBy("createdAt", "desc")
+      );
+      const snap = await getDocs(q);
+      setClientes(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Customer)));
+    } catch (e) {
+      console.error("Erro ao carregar clientes para aprovação:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar os clientes. Tente novamente.", "error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {

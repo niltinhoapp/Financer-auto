@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { useAuth } from "@/hooks/useAuth";
 import { getCustomers } from "@/lib/firestore/customers";
 import { getVehicles } from "@/lib/firestore/vehicles";
@@ -10,6 +11,7 @@ import { calcularResumoFinanciamento, gerarCronograma, gerarCronogramaManual } f
 import { formatCurrency, todayISO } from "@/lib/utils";
 import { getDocs, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useToast } from "@/components/ui/Toast";
 import type { Customer, Vehicle } from "@financer-auto/shared";
 import { ArrowLeft, ChevronRight, ArrowLeftRight, AlertTriangle, ShieldCheck, CheckCircle } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +27,7 @@ const DOC_OBRIGATORIOS = ["cpf", "rg", "residencia", "renda"];
 export default function NovoContratoPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -73,8 +76,12 @@ export default function NovoContratoPage() {
     Promise.all([getCustomers(), getVehicles("available")]).then(([c, v]) => {
       setCustomers(c);
       setVehicles(v);
+    }).catch((e) => {
+      console.error("Erro ao carregar clientes/veículos:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar clientes e veículos. Tente novamente.", "error");
     });
-  }, []);
+  }, [toast]);
 
   async function loadCustomerDocs(customerId: string) {
     setLoadingDocs(true);
@@ -84,7 +91,11 @@ export default function NovoContratoPage() {
       const snap = await getDocs(collection(db, "customers", customerId, "documents"));
       const approved = snap.docs.filter((d) => d.data().status === "approved").map((d) => d.id);
       setCustomerDocs(approved);
-    } catch { setCustomerDocs([]); }
+    } catch (e) {
+      console.error("Erro ao carregar documentos do cliente:", e);
+      Sentry.captureException(e);
+      setCustomerDocs([]);
+    }
     finally { setLoadingDocs(false); }
   }
 
@@ -146,7 +157,9 @@ export default function NovoContratoPage() {
         docsPendingAtSale: docsOk ? [] : docsFaltando,
       });
       router.push(`/contratos/${id}`);
-    } catch {
+    } catch (e) {
+      console.error("Erro ao salvar contrato:", e);
+      Sentry.captureException(e);
       setError("Erro ao salvar contrato. Tente novamente.");
       setSaving(false);
     }

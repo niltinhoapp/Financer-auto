@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { collection, query, where, getDocs, orderBy, getDoc, doc } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { getCustomer } from "@/lib/firestore/customers";
@@ -12,11 +13,13 @@ import { gerarTextoContrato } from "@/lib/contractTemplate";
 import { assinarContratoFn } from "@/lib/functions";
 import { formatCPF, formatDate } from "@/lib/utils";
 import { validarCPF } from "@/lib/validations";
+import { useToast } from "@/components/ui/Toast";
 import type { Contract, Customer, Vehicle } from "@financer-auto/shared";
 import { ArrowLeft, FileSignature, ShieldCheck, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function ContratoLeituraAssinaturaPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [contract, setContract] = useState<Contract | null>(null);
@@ -75,12 +78,14 @@ export default function ContratoLeituraAssinaturaPage() {
         }
       } catch (err) {
         console.error("Erro ao carregar contrato do cliente:", err);
+        Sentry.captureException(err);
+        toast("Não foi possível carregar o contrato. Tente novamente.", "error");
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, [user]);
+  }, [user, toast]);
 
   async function handleSign(e: React.FormEvent) {
     e.preventDefault();
@@ -119,6 +124,8 @@ export default function ContratoLeituraAssinaturaPage() {
         },
       });
     } catch (err: unknown) {
+      console.error("Erro ao assinar contrato:", err);
+      Sentry.captureException(err);
       const message =
         (err as { details?: string; message?: string })?.details ??
         (err as Error)?.message ??

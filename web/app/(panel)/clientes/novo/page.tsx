@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { useAuth } from "@/hooks/useAuth";
 import { createCustomer } from "@/lib/firestore/customers";
 import { doc, updateDoc } from "firebase/firestore";
@@ -158,10 +159,13 @@ function NovoClienteForm() {
           });
         } catch (e) {
           console.error("Falha ao marcar lead como convertido:", e);
+          Sentry.captureException(e);
         }
       }
       router.push(`/clientes/${id}`);
-    } catch {
+    } catch (e) {
+      console.error("Erro ao salvar cliente:", e);
+      Sentry.captureException(e);
       setSaveError("Erro ao salvar cliente. Tente novamente.");
     } finally {
       setSaving(false);

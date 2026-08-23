@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { getContract, getInstallments, getPayments, updateInstallment, renegotiateInstallments, updateContract } from "@/lib/firestore/contracts";
 import { excluirContratoFn } from "@/lib/functions";
@@ -84,29 +85,36 @@ export default function ContratoDetailPage() {
 
   async function load() {
     if (!id) return;
-    const [c, inst, pays] = await Promise.all([
-      getContract(id),
-      getInstallments(id),
-      getPayments(id),
-    ]);
-    setContract(c);
-    setInstallments(inst);
-    setPayments(pays);
-    if (c) {
-      const [cust, veh, war, revs, wks] = await Promise.all([
-        getCustomer(c.customerId),
-        getVehicle(c.vehicleId),
-        getWarrantyByContract(c.id),
-        getRevisionsByContract(c.id),
-        getWorkshops(),
+    try {
+      const [c, inst, pays] = await Promise.all([
+        getContract(id),
+        getInstallments(id),
+        getPayments(id),
       ]);
-      setCustomer(cust);
-      setVehicle(veh);
-      setWarranty(war);
-      setRevisions(revs);
-      setWorkshops(wks);
+      setContract(c);
+      setInstallments(inst);
+      setPayments(pays);
+      if (c) {
+        const [cust, veh, war, revs, wks] = await Promise.all([
+          getCustomer(c.customerId),
+          getVehicle(c.vehicleId),
+          getWarrantyByContract(c.id),
+          getRevisionsByContract(c.id),
+          getWorkshops(),
+        ]);
+        setCustomer(cust);
+        setVehicle(veh);
+        setWarranty(war);
+        setRevisions(revs);
+        setWorkshops(wks);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar contrato:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar o contrato. Tente novamente.", "error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleCreateWarranty(e: React.FormEvent) {
@@ -276,6 +284,7 @@ export default function ContratoDetailPage() {
       await load();
     } catch (e) {
       console.error("Erro ao renegociar:", e);
+      Sentry.captureException(e);
       toast("Erro ao salvar renegociação.", "error");
       setConfirmingReneg(false);
     } finally {
@@ -330,6 +339,7 @@ export default function ContratoDetailPage() {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Erro ao gerar PDF:", e);
+      Sentry.captureException(e);
       toast("Erro ao gerar PDF do contrato.", "error");
     }
   }
@@ -380,6 +390,7 @@ export default function ContratoDetailPage() {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Erro ao gerar promissórias:", e);
+      Sentry.captureException(e);
       toast("Erro ao gerar PDF das notas promissórias.", "error");
     }
   }
@@ -1056,6 +1067,8 @@ export default function ContratoDetailPage() {
                     toast("Contrato excluído.", "success");
                     router.replace("/contratos");
                   } catch (e) {
+                    console.error("Erro ao excluir contrato:", e);
+                    Sentry.captureException(e);
                     const message = e instanceof Error ? e.message : "Erro ao excluir contrato.";
                     toast(message, "error");
                     setDeletingContract(false);

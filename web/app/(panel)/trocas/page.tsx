@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy, limit, doc, updateDoc, getDoc } from "firebase/firestore";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/ui/Toast";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ArrowLeftRight, Check, X, Clock, AlertCircle, Car } from "lucide-react";
 
@@ -29,6 +31,7 @@ const statusCfg = {
 
 export default function TrocasPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [requests, setRequests] = useState<ExchangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"pending" | "all">("pending");
@@ -41,6 +44,10 @@ export default function TrocasPage() {
       // Limita às 300 solicitações mais recentes — evita crescimento ilimitado de leitura.
       const snap = await getDocs(query(collection(db, "exchangeRequests"), orderBy("createdAt", "desc"), limit(300)));
       setRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as ExchangeRequest[]);
+    } catch (e) {
+      console.error("Erro ao carregar solicitações de troca:", e);
+      Sentry.captureException(e);
+      toast("Não foi possível carregar as solicitações de troca. Tente novamente.", "error");
     } finally {
       setLoading(false);
     }
