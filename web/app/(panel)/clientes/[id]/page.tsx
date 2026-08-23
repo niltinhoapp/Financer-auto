@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getCustomer, updateCustomer } from "@/lib/firestore/customers";
@@ -71,6 +71,17 @@ export default function ClienteDetailPage() {
   const [restrictionModal, setRestrictionModal] = useState(false);
   const [restrictionReason, setRestrictionReason] = useState("");
   const [savingRestriction, setSavingRestriction] = useState(false);
+  const restrictionTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!restrictionModal) return;
+    restrictionTextareaRef.current?.focus();
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setRestrictionModal(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [restrictionModal]);
 
   async function loadDocs() {
     if (!id) return;
@@ -326,10 +337,15 @@ export default function ClienteDetailPage() {
 
         {restrictionModal && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-               style={{ background: "rgba(0,0,0,.6)" }}>
-            <div className="card w-full max-w-md p-5 space-y-3">
+               style={{ background: "rgba(0,0,0,.6)" }}
+               onClick={() => setRestrictionModal(false)}>
+            <div className="card w-full max-w-md p-5 space-y-3"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="restriction-modal-title"
+                 onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>Marcar restrição interna</h3>
+                <h3 id="restriction-modal-title" className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>Marcar restrição interna</h3>
                 <button onClick={() => setRestrictionModal(false)} aria-label="Fechar" style={{ color: "var(--text-muted)" }}>
                   <X className="w-5 h-5" />
                 </button>
@@ -337,7 +353,7 @@ export default function ClienteDetailPage() {
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Descreva o motivo (ex: parcelas em atraso há mais de 90 dias, contrato anterior renegociado sem acordo).
               </p>
-              <textarea value={restrictionReason} onChange={(e) => setRestrictionReason(e.target.value)}
+              <textarea ref={restrictionTextareaRef} value={restrictionReason} onChange={(e) => setRestrictionReason(e.target.value)}
                         rows={3} className={inputCls} placeholder="Motivo da restrição..." />
               <button onClick={handleApplyRestriction} disabled={!restrictionReason.trim() || savingRestriction}
                       className="btn-primary w-full" style={{ background: "#ef4444" }}>
