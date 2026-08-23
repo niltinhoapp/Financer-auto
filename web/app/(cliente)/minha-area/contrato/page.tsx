@@ -158,7 +158,7 @@ export default function ContratoLeituraAssinaturaPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
-        <Link href="/minha-area" className="text-gray-400 hover:text-gray-600">
+        <Link href="/minha-area" aria-label="Voltar para Minha Área" className="text-gray-400 hover:text-gray-600">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>

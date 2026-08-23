@@ -487,6 +487,7 @@ export default function RecebimentosPage() {
                             style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
                           />
                           <button onClick={() => handleReject(req)} disabled={!rejectReason.trim()}
+                                  aria-label="Recusar comprovante"
                                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-opacity disabled:opacity-40"
                                   style={{ background: "#ef444418", border: "1px solid #ef444440", color: "#ef4444" }}>
                             <X className="w-4 h-4" />
@@ -740,7 +741,7 @@ export default function RecebimentosPage() {
                   Parcela #{registerModal.number} — Contrato {registerModal.contractId.slice(0, 8)}
                 </p>
               </div>
-              <button onClick={() => setRegisterModal(null)} style={{ color: "var(--text-muted)" }}>
+              <button onClick={() => setRegisterModal(null)} aria-label="Fechar" style={{ color: "var(--text-muted)" }}>
                 <X className="w-5 h-5" />
               </button>
             </div>

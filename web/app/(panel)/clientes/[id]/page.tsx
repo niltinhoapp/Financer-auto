@@ -260,7 +260,7 @@ export default function ClienteDetailPage() {
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <Link href="/clientes" className="hover:opacity-70" style={{ color: "var(--text-muted)" }}>
+        <Link href="/clientes" aria-label="Voltar para Clientes" className="hover:opacity-70" style={{ color: "var(--text-muted)" }}>
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-lg md:text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{customer.name}</h1>
@@ -330,7 +330,7 @@ export default function ClienteDetailPage() {
             <div className="card w-full max-w-md p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>Marcar restrição interna</h3>
-                <button onClick={() => setRestrictionModal(false)} style={{ color: "var(--text-muted)" }}>
+                <button onClick={() => setRestrictionModal(false)} aria-label="Fechar" style={{ color: "var(--text-muted)" }}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -368,29 +368,29 @@ export default function ClienteDetailPage() {
           <form onSubmit={handleSaveEdit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Nome completo</label>
-                <input value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                <label htmlFor="edit_name" className={labelCls} style={{ color: "var(--text-secondary)" }}>Nome completo</label>
+                <input id="edit_name" value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
                   className={inputCls} required />
               </div>
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>CPF</label>
-                <input value={editForm.cpf} onChange={(e) => setEditForm((p) => ({ ...p, cpf: e.target.value }))}
+                <label htmlFor="edit_cpf" className={labelCls} style={{ color: "var(--text-secondary)" }}>CPF</label>
+                <input id="edit_cpf" value={editForm.cpf} onChange={(e) => setEditForm((p) => ({ ...p, cpf: e.target.value }))}
                   className={inputCls} required />
               </div>
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Telefone</label>
-                <input value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
+                <label htmlFor="edit_phone" className={labelCls} style={{ color: "var(--text-secondary)" }}>Telefone</label>
+                <input id="edit_phone" value={editForm.phone} onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
                   className={inputCls} />
               </div>
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>E-mail</label>
-                <input type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
+                <label htmlFor="edit_email" className={labelCls} style={{ color: "var(--text-secondary)" }}>E-mail</label>
+                <input id="edit_email" type="email" value={editForm.email} onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
                   className={inputCls} />
                 <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Use o e-mail real do cliente — não reutilize e-mails de admin/vendedor.</p>
               </div>
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Nascimento</label>
-                <input type="date" value={editForm.birthDate} onChange={(e) => setEditForm((p) => ({ ...p, birthDate: e.target.value }))}
+                <label htmlFor="edit_birthDate" className={labelCls} style={{ color: "var(--text-secondary)" }}>Nascimento</label>
+                <input id="edit_birthDate" type="date" value={editForm.birthDate} onChange={(e) => setEditForm((p) => ({ ...p, birthDate: e.target.value }))}
                   className={inputCls} />
               </div>
             </div>
@@ -399,38 +399,38 @@ export default function ClienteDetailPage() {
               <p className="text-xs font-medium mb-3 mt-3" style={{ color: "var(--text-secondary)" }}>Endereço</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="col-span-2">
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Rua</label>
-                  <input value={editForm.street} onChange={(e) => setEditForm((p) => ({ ...p, street: e.target.value }))}
+                  <label htmlFor="edit_street" className={labelCls} style={{ color: "var(--text-secondary)" }}>Rua</label>
+                  <input id="edit_street" value={editForm.street} onChange={(e) => setEditForm((p) => ({ ...p, street: e.target.value }))}
                     className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Número</label>
-                  <input value={editForm.number} onChange={(e) => setEditForm((p) => ({ ...p, number: e.target.value }))}
+                  <label htmlFor="edit_number" className={labelCls} style={{ color: "var(--text-secondary)" }}>Número</label>
+                  <input id="edit_number" value={editForm.number} onChange={(e) => setEditForm((p) => ({ ...p, number: e.target.value }))}
                     className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Complemento</label>
-                  <input value={editForm.complement} onChange={(e) => setEditForm((p) => ({ ...p, complement: e.target.value }))}
+                  <label htmlFor="edit_complement" className={labelCls} style={{ color: "var(--text-secondary)" }}>Complemento</label>
+                  <input id="edit_complement" value={editForm.complement} onChange={(e) => setEditForm((p) => ({ ...p, complement: e.target.value }))}
                     className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Bairro</label>
-                  <input value={editForm.district} onChange={(e) => setEditForm((p) => ({ ...p, district: e.target.value }))}
+                  <label htmlFor="edit_district" className={labelCls} style={{ color: "var(--text-secondary)" }}>Bairro</label>
+                  <input id="edit_district" value={editForm.district} onChange={(e) => setEditForm((p) => ({ ...p, district: e.target.value }))}
                     className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Cidade</label>
-                  <input value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))}
+                  <label htmlFor="edit_city" className={labelCls} style={{ color: "var(--text-secondary)" }}>Cidade</label>
+                  <input id="edit_city" value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))}
                     className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>UF</label>
-                  <input value={editForm.state} maxLength={2} onChange={(e) => setEditForm((p) => ({ ...p, state: e.target.value }))}
+                  <label htmlFor="edit_state" className={labelCls} style={{ color: "var(--text-secondary)" }}>UF</label>
+                  <input id="edit_state" value={editForm.state} maxLength={2} onChange={(e) => setEditForm((p) => ({ ...p, state: e.target.value }))}
                     className={`${inputCls} uppercase`} />
                 </div>
                 <div>
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>CEP</label>
-                  <input value={editForm.zip} onChange={(e) => setEditForm((p) => ({ ...p, zip: e.target.value }))}
+                  <label htmlFor="edit_zip" className={labelCls} style={{ color: "var(--text-secondary)" }}>CEP</label>
+                  <input id="edit_zip" value={editForm.zip} onChange={(e) => setEditForm((p) => ({ ...p, zip: e.target.value }))}
                     className={inputCls} />
                 </div>
               </div>
@@ -517,7 +517,7 @@ export default function ClienteDetailPage() {
                         {accessResult.tempPassword}
                       </code>
                       <button onClick={() => { navigator.clipboard.writeText(accessResult.tempPassword!); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                              className="p-1.5 rounded hover:opacity-70" style={{ color: "var(--accent)" }} title="Copiar senha">
+                              className="p-1.5 rounded hover:opacity-70" style={{ color: "var(--accent)" }} title="Copiar senha" aria-label="Copiar senha">
                         {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       </button>
                       {customer.phone && (
@@ -546,10 +546,10 @@ export default function ClienteDetailPage() {
                           style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
                       {accessResult.resetLink}
                     </code>
-                    <button onClick={copyLink} className="p-1.5 rounded hover:opacity-70" style={{ color: "var(--accent)" }}>
+                    <button onClick={copyLink} aria-label="Copiar link" className="p-1.5 rounded hover:opacity-70" style={{ color: "var(--accent)" }}>
                       <Copy className="w-4 h-4" />
                     </button>
-                    <a href={accessResult.resetLink} target="_blank" rel="noreferrer" className="p-1.5 rounded hover:opacity-70" style={{ color: "var(--accent)" }}>
+                    <a href={accessResult.resetLink} target="_blank" rel="noreferrer" aria-label="Abrir link em nova aba" className="p-1.5 rounded hover:opacity-70" style={{ color: "var(--accent)" }}>
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </div>
@@ -603,14 +603,14 @@ export default function ClienteDetailPage() {
                               disabled={approvingDoc === d.tipo}
                               className="p-1.5 rounded-lg transition-colors hover:opacity-70"
                               style={{ color: "#10b981" }}
-                              title="Aprovar">
+                              title="Aprovar" aria-label={`Aprovar documento ${labels[d.tipo] ?? d.tipo}`}>
                         <Check className="w-4 h-4" />
                       </button>
                       <button onClick={() => handleDocAction(d.tipo, "rejected")}
                               disabled={approvingDoc === d.tipo}
                               className="p-1.5 rounded-lg transition-colors hover:opacity-70"
                               style={{ color: "#ef4444" }}
-                              title="Recusar">
+                              title="Recusar" aria-label={`Recusar documento ${labels[d.tipo] ?? d.tipo}`}>
                         <X className="w-4 h-4" />
                       </button>
                     </div>

@@ -127,7 +127,7 @@ export default function VeiculosPage() {
                   <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0"
                        style={{ background: "var(--bg-hover)" }}>
                     {v.photos?.[0]
-                      ? <img src={v.photos[0]} alt="" className="w-full h-full object-cover" />
+                      ? <img src={v.photos[0]} alt={`${v.brand} ${v.model}`} className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center">
                           <Car className="w-6 h-6 opacity-30" style={{ color: "var(--text-muted)" }} />
                         </div>
@@ -190,7 +190,7 @@ export default function VeiculosPage() {
                           <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0"
                                style={{ background: "var(--bg-hover)" }}>
                             {v.photos?.[0]
-                              ? <img src={v.photos[0]} alt="" className="w-full h-full object-cover" />
+                              ? <img src={v.photos[0]} alt={`${v.brand} ${v.model}`} className="w-full h-full object-cover" />
                               : <div className="w-full h-full flex items-center justify-center">
                                   <Car className="w-4 h-4 opacity-40" style={{ color: "var(--text-muted)" }} />
                                 </div>

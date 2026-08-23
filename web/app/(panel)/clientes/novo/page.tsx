@@ -17,10 +17,10 @@ import {
 import { ArrowLeft, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, error, id, children }: { label: string; error?: string; id: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {children}
       {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
     </div>
@@ -196,8 +196,9 @@ function NovoClienteForm() {
           <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b">Dados Pessoais</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <Field label="Nome Completo *" error={errors.name}>
+              <Field label="Nome Completo *" error={errors.name} id="name">
                 <input
+                  id="name"
                   type="text"
                   value={form.name}
                   onChange={(e) => set("name", e.target.value)}
@@ -207,9 +208,10 @@ function NovoClienteForm() {
               </Field>
             </div>
 
-            <Field label="CPF (opcional)" error={errors.cpf}>
+            <Field label="CPF (opcional)" error={errors.cpf} id="cpf">
               <div className="relative">
                 <input
+                  id="cpf"
                   type="text"
                   value={formatarCPF(form.cpf)}
                   onChange={(e) => handleCPF(e.target.value)}
@@ -226,8 +228,9 @@ function NovoClienteForm() {
               </div>
             </Field>
 
-            <Field label="RG">
+            <Field label="RG" id="rg">
               <input
+                id="rg"
                 type="text"
                 value={form.rg}
                 onChange={(e) => set("rg", e.target.value)}
@@ -236,8 +239,9 @@ function NovoClienteForm() {
               />
             </Field>
 
-            <Field label="Data de Nascimento (opcional)" error={errors.birthDate}>
+            <Field label="Data de Nascimento (opcional)" error={errors.birthDate} id="birthDate">
               <input
+                id="birthDate"
                 type="date"
                 value={form.birthDate}
                 onChange={(e) => set("birthDate", e.target.value)}
@@ -246,8 +250,9 @@ function NovoClienteForm() {
               />
             </Field>
 
-            <Field label="Telefone / WhatsApp *" error={errors.phone}>
+            <Field label="Telefone / WhatsApp *" error={errors.phone} id="phone">
               <input
+                id="phone"
                 type="tel"
                 value={formatarTelefone(form.phone)}
                 onChange={(e) => {
@@ -260,8 +265,9 @@ function NovoClienteForm() {
             </Field>
 
             <div className="col-span-2">
-              <Field label="E-mail *" error={errors.email}>
+              <Field label="E-mail *" error={errors.email} id="email">
                 <input
+                  id="email"
                   type="email"
                   value={form.email}
                   onChange={(e) => set("email", e.target.value)}
@@ -277,9 +283,10 @@ function NovoClienteForm() {
         <section className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b">Endereço</h2>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="CEP (opcional)" error={errors.addr_zip}>
+            <Field label="CEP (opcional)" error={errors.addr_zip} id="addr_zip">
               <div className="relative">
                 <input
+                  id="addr_zip"
                   type="text"
                   value={formatarCEP(form.address.zip)}
                   onChange={(e) => handleCEP(e.target.value)}
@@ -298,8 +305,9 @@ function NovoClienteForm() {
               )}
             </Field>
 
-            <Field label="Estado (UF)">
+            <Field label="Estado (UF)" id="addr_state">
               <input
+                id="addr_state"
                 type="text"
                 value={form.address.state}
                 onChange={(e) => setAddr("state", e.target.value.toUpperCase())}
@@ -309,8 +317,9 @@ function NovoClienteForm() {
               />
             </Field>
 
-            <Field label="Cidade" error={errors.addr_city}>
+            <Field label="Cidade" error={errors.addr_city} id="addr_city">
               <input
+                id="addr_city"
                 type="text"
                 value={form.address.city}
                 onChange={(e) => setAddr("city", e.target.value)}
@@ -318,8 +327,9 @@ function NovoClienteForm() {
               />
             </Field>
 
-            <Field label="Bairro">
+            <Field label="Bairro" id="addr_district">
               <input
+                id="addr_district"
                 type="text"
                 value={form.address.district}
                 onChange={(e) => setAddr("district", e.target.value)}
@@ -327,8 +337,9 @@ function NovoClienteForm() {
               />
             </Field>
 
-            <Field label="Rua" error={errors.addr_street}>
+            <Field label="Rua" error={errors.addr_street} id="addr_street">
               <input
+                id="addr_street"
                 type="text"
                 value={form.address.street}
                 onChange={(e) => setAddr("street", e.target.value)}
@@ -336,8 +347,9 @@ function NovoClienteForm() {
               />
             </Field>
 
-            <Field label="Número" error={errors.addr_number}>
+            <Field label="Número" error={errors.addr_number} id="addr_number">
               <input
+                id="addr_number"
                 type="text"
                 value={form.address.number}
                 onChange={(e) => setAddr("number", e.target.value)}
@@ -346,8 +358,9 @@ function NovoClienteForm() {
             </Field>
 
             <div className="col-span-2">
-              <Field label="Complemento">
+              <Field label="Complemento" id="addr_complement">
                 <input
+                  id="addr_complement"
                   type="text"
                   value={form.address.complement}
                   onChange={(e) => setAddr("complement", e.target.value)}

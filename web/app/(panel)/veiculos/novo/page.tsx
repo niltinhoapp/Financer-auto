@@ -135,7 +135,7 @@ export default function NovoVeiculoPage() {
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/veiculos" style={{ color: "var(--text-muted)" }} className="hover:opacity-70 transition-opacity">
+        <Link href="/veiculos" aria-label="Voltar para Veículos" style={{ color: "var(--text-muted)" }} className="hover:opacity-70 transition-opacity">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Novo Veículo</h1>
@@ -165,7 +165,7 @@ export default function NovoVeiculoPage() {
               {photos.map((p, i) => (
                 <div key={i} className="relative aspect-square rounded-xl overflow-hidden group"
                      style={{ border: i === 0 ? "2px solid var(--accent)" : "2px solid var(--border)" }}>
-                  <img src={p.preview} alt="" className="w-full h-full object-cover" />
+                  <img src={p.preview} alt={form.brand && form.model ? `${form.brand} ${form.model}` : `Foto ${i + 1} do veículo`} className="w-full h-full object-cover" />
 
                   {/* Badge principal */}
                   {i === 0 && (
@@ -192,6 +192,7 @@ export default function NovoVeiculoPage() {
                   {/* Remover */}
                   {!p.uploading && (
                     <button type="button" onClick={() => removePhoto(i)}
+                            aria-label="Remover foto"
                             className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                             style={{ background: "rgba(0,0,0,.6)" }}>
                       <X className="w-3 h-3 text-white" />
@@ -201,6 +202,7 @@ export default function NovoVeiculoPage() {
                   {/* Mover para principal */}
                   {i > 0 && !p.uploading && (
                     <button type="button" onClick={() => movePhoto(i, 0)}
+                            aria-label="Marcar como foto principal"
                             className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
                             style={{ background: "rgba(0,0,0,.6)" }}>
                       ★
@@ -277,8 +279,8 @@ export default function NovoVeiculoPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Tipo</label>
-              <select value={form.type} onChange={(e) => set("type", e.target.value)}
+              <label htmlFor="type" className={labelCls} style={{ color: "var(--text-secondary)" }}>Tipo</label>
+              <select id="type" value={form.type} onChange={(e) => set("type", e.target.value)}
                       className={inputCls} style={inputStyle}>
                 <option value="car">Carro</option>
                 <option value="motorcycle">Moto</option>
@@ -287,8 +289,8 @@ export default function NovoVeiculoPage() {
               </select>
             </div>
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Placa</label>
-              <input type="text" value={form.plate} onChange={(e) => set("plate", e.target.value.toUpperCase())}
+              <label htmlFor="plate" className={labelCls} style={{ color: "var(--text-secondary)" }}>Placa</label>
+              <input id="plate" type="text" value={form.plate} onChange={(e) => set("plate", e.target.value.toUpperCase())}
                      required maxLength={8} placeholder="ABC-1234"
                      className={`${inputCls} font-mono`} style={inputStyle} />
             </div>
@@ -296,58 +298,58 @@ export default function NovoVeiculoPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Marca</label>
-              <input type="text" value={form.brand} onChange={(e) => set("brand", e.target.value)}
+              <label htmlFor="brand" className={labelCls} style={{ color: "var(--text-secondary)" }}>Marca</label>
+              <input id="brand" type="text" value={form.brand} onChange={(e) => set("brand", e.target.value)}
                      required placeholder="Toyota, Honda..." className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Modelo</label>
-              <input type="text" value={form.model} onChange={(e) => set("model", e.target.value)}
+              <label htmlFor="model" className={labelCls} style={{ color: "var(--text-secondary)" }}>Modelo</label>
+              <input id="model" type="text" value={form.model} onChange={(e) => set("model", e.target.value)}
                      required placeholder="Corolla, Civic..." className={inputCls} style={inputStyle} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Ano</label>
-              <input type="number" value={form.year} onChange={(e) => set("year", Number(e.target.value))}
+              <label htmlFor="year" className={labelCls} style={{ color: "var(--text-secondary)" }}>Ano</label>
+              <input id="year" type="number" value={form.year} onChange={(e) => set("year", Number(e.target.value))}
                      required min={1950} max={new Date().getFullYear() + 1}
                      className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Cor</label>
-              <input type="text" value={form.color} onChange={(e) => set("color", e.target.value)}
+              <label htmlFor="color" className={labelCls} style={{ color: "var(--text-secondary)" }}>Cor</label>
+              <input id="color" type="text" value={form.color} onChange={(e) => set("color", e.target.value)}
                      placeholder="Prata, Preto..." className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Quilometragem</label>
-              <input type="number" value={form.mileage || ""} onChange={(e) => set("mileage", Number(e.target.value))}
+              <label htmlFor="mileage" className={labelCls} style={{ color: "var(--text-secondary)" }}>Quilometragem</label>
+              <input id="mileage" type="number" value={form.mileage || ""} onChange={(e) => set("mileage", Number(e.target.value))}
                      min={0} placeholder="0" className={inputCls} style={inputStyle} />
             </div>
           </div>
 
           <div>
-            <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Chassi</label>
-            <input type="text" value={form.chassis} onChange={(e) => set("chassis", e.target.value.toUpperCase())}
+            <label htmlFor="chassis" className={labelCls} style={{ color: "var(--text-secondary)" }}>Chassi</label>
+            <input id="chassis" type="text" value={form.chassis} onChange={(e) => set("chassis", e.target.value.toUpperCase())}
                    placeholder="17 caracteres" className={`${inputCls} font-mono`} style={inputStyle} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Preço de Compra (R$)</label>
-              <input type="number" value={form.purchasePrice || ""} onChange={(e) => set("purchasePrice", Number(e.target.value))}
+              <label htmlFor="purchasePrice" className={labelCls} style={{ color: "var(--text-secondary)" }}>Preço de Compra (R$)</label>
+              <input id="purchasePrice" type="number" value={form.purchasePrice || ""} onChange={(e) => set("purchasePrice", Number(e.target.value))}
                      min={0} step={0.01} placeholder="0,00" className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Preço de Venda (R$) <span style={{ color: "#ef4444" }}>*</span></label>
-              <input type="number" value={form.price || ""} onChange={(e) => set("price", Number(e.target.value))}
+              <label htmlFor="price" className={labelCls} style={{ color: "var(--text-secondary)" }}>Preço de Venda (R$) <span style={{ color: "#ef4444" }}>*</span></label>
+              <input id="price" type="number" value={form.price || ""} onChange={(e) => set("price", Number(e.target.value))}
                      required min={0} step={0.01} placeholder="0,00" className={inputCls} style={inputStyle} />
             </div>
           </div>
 
           <div>
-            <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Opcionais / Observações</label>
-            <textarea value={form.features} onChange={(e) => set("features", e.target.value)}
+            <label htmlFor="features" className={labelCls} style={{ color: "var(--text-secondary)" }}>Opcionais / Observações</label>
+            <textarea id="features" value={form.features} onChange={(e) => set("features", e.target.value)}
                       rows={3} placeholder="Ar condicionado, direção hidráulica, rodas de liga..."
                       className={inputCls} style={inputStyle} />
           </div>

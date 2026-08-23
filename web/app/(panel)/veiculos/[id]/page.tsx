@@ -167,7 +167,7 @@ export default function VeiculoDetailPage() {
   return (
     <div className="p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/veiculos" style={{ color: "var(--text-muted)" }} className="hover:opacity-70 transition-opacity">
+        <Link href="/veiculos" aria-label="Voltar para Veículos" style={{ color: "var(--text-muted)" }} className="hover:opacity-70 transition-opacity">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
@@ -206,11 +206,13 @@ export default function VeiculoDetailPage() {
               {photos.length > 1 && (
                 <>
                   <button onClick={() => setPhotoIdx((i) => (i - 1 + photos.length) % photos.length)}
+                          aria-label="Foto anterior"
                           className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full"
                           style={{ background: "rgba(0,0,0,.5)" }}>
                     <ChevronLeft className="w-4 h-4 text-white" />
                   </button>
                   <button onClick={() => setPhotoIdx((i) => (i + 1) % photos.length)}
+                          aria-label="Próxima foto"
                           className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full"
                           style={{ background: "rgba(0,0,0,.5)" }}>
                     <ChevronRight className="w-4 h-4 text-white" />
@@ -240,7 +242,7 @@ export default function VeiculoDetailPage() {
                   <button onClick={() => handleRemovePhoto(photoIdx)}
                           className="p-1.5 rounded-lg text-white"
                           style={{ background: "rgba(239,68,68,.7)" }}
-                          title="Remover foto">
+                          title="Remover foto" aria-label="Remover foto">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -261,9 +263,10 @@ export default function VeiculoDetailPage() {
           <div className="flex gap-2 overflow-x-auto pb-1">
             {photos.map((url, i) => (
               <button key={i} onClick={() => setPhotoIdx(i)}
+                      aria-label={`Ver foto ${i + 1} de ${vehicle.brand} ${vehicle.model}`}
                       className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden transition-all"
                       style={{ border: `2px solid ${i === photoIdx ? "var(--accent)" : "transparent"}` }}>
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                <img src={url} alt={`${vehicle.brand} ${vehicle.model} - foto ${i + 1}`} className="w-full h-full object-cover" />
               </button>
             ))}
 

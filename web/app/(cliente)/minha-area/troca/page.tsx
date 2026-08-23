@@ -132,7 +132,7 @@ export default function TrocaPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/minha-area" style={{ color: "var(--text-muted)" }}>
+        <Link href="/minha-area" aria-label="Voltar para Minha Área" style={{ color: "var(--text-muted)" }}>
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>

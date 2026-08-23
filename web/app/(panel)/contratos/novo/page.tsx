@@ -165,7 +165,7 @@ export default function NovoContratoPage() {
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/contratos" style={{ color: "var(--text-muted)" }} className="hover:opacity-70 transition-opacity">
+        <Link href="/contratos" aria-label="Voltar para Contratos" style={{ color: "var(--text-muted)" }} className="hover:opacity-70 transition-opacity">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl md:text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Nova Venda</h1>
@@ -417,19 +417,19 @@ export default function NovoContratoPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Entrada (R$)</label>
-              <input type="number" value={financiamento.entrada || ""}
+              <label htmlFor="entrada" className={labelCls} style={{ color: "var(--text-secondary)" }}>Entrada (R$)</label>
+              <input id="entrada" type="number" value={financiamento.entrada || ""}
                      onChange={(e) => setFinanciamento((p) => ({ ...p, entrada: Number(e.target.value) }))}
                      min={0} max={financiamento.modoManual ? undefined : preco} step={0.01} placeholder="0,00" className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Nº de Parcelas</label>
+              <label htmlFor="parcelas" className={labelCls} style={{ color: "var(--text-secondary)" }}>Nº de Parcelas</label>
               {financiamento.modoManual ? (
-                <input type="number" value={financiamento.parcelas}
+                <input id="parcelas" type="number" value={financiamento.parcelas}
                        onChange={(e) => setFinanciamento((p) => ({ ...p, parcelas: Math.max(1, Number(e.target.value)) }))}
                        min={1} step={1} className={inputCls} style={inputStyle} />
               ) : (
-                <select value={financiamento.parcelas}
+                <select id="parcelas" value={financiamento.parcelas}
                         onChange={(e) => setFinanciamento((p) => ({ ...p, parcelas: Number(e.target.value) }))}
                         className={inputCls} style={inputStyle}>
                   {[3, 6, 9, 12, 18, 24, 36, 48, 60].map((n) => (
@@ -441,15 +441,15 @@ export default function NovoContratoPage() {
 
             {financiamento.modoManual ? (
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Valor de cada parcela (R$)</label>
-                <input type="number" value={financiamento.valorParcelaManual || ""}
+                <label htmlFor="valorParcelaManual" className={labelCls} style={{ color: "var(--text-secondary)" }}>Valor de cada parcela (R$)</label>
+                <input id="valorParcelaManual" type="number" value={financiamento.valorParcelaManual || ""}
                        onChange={(e) => setFinanciamento((p) => ({ ...p, valorParcelaManual: Number(e.target.value) }))}
                        min={0} step={0.01} placeholder="0,00" className={inputCls} style={inputStyle} />
               </div>
             ) : (
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Taxa de Juros (% a.m.)</label>
-                <input type="number" value={financiamento.taxaMensal}
+                <label htmlFor="taxaMensal" className={labelCls} style={{ color: "var(--text-secondary)" }}>Taxa de Juros (% a.m.)</label>
+                <input id="taxaMensal" type="number" value={financiamento.taxaMensal}
                        onChange={(e) => setFinanciamento((p) => ({ ...p, taxaMensal: Number(e.target.value) }))}
                        min={0} step={0.1} className={inputCls} style={inputStyle} />
               </div>
@@ -457,8 +457,9 @@ export default function NovoContratoPage() {
 
             {financiamento.modoManual && (
               <div>
-                <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Dia do vencimento (todo mês)</label>
+                <label htmlFor="diaVencimento" className={labelCls} style={{ color: "var(--text-secondary)" }}>Dia do vencimento (todo mês)</label>
                 <select
+                  id="diaVencimento"
                   value={financiamento.primeiroVencimento ? Number(financiamento.primeiroVencimento.split("-")[2]) : ""}
                   onChange={(e) => {
                     const dia = Number(e.target.value);
@@ -484,8 +485,8 @@ export default function NovoContratoPage() {
               </div>
             )}
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>1º Vencimento</label>
-              <input type="date" value={financiamento.primeiroVencimento}
+              <label htmlFor="primeiroVencimento" className={labelCls} style={{ color: "var(--text-secondary)" }}>1º Vencimento</label>
+              <input id="primeiroVencimento" type="date" value={financiamento.primeiroVencimento}
                      onChange={(e) => setFinanciamento((p) => ({ ...p, primeiroVencimento: e.target.value }))}
                      min={todayISO()} className={inputCls} style={inputStyle} />
               {financiamento.modoManual && financiamento.primeiroVencimento && (
@@ -495,14 +496,14 @@ export default function NovoContratoPage() {
               )}
             </div>
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Multa por Atraso (%)</label>
-              <input type="number" value={financiamento.multa}
+              <label htmlFor="multa" className={labelCls} style={{ color: "var(--text-secondary)" }}>Multa por Atraso (%)</label>
+              <input id="multa" type="number" value={financiamento.multa}
                      onChange={(e) => setFinanciamento((p) => ({ ...p, multa: Number(e.target.value) }))}
                      min={0} step={0.1} className={inputCls} style={inputStyle} />
             </div>
             <div>
-              <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Juros Diário Atraso (%)</label>
-              <input type="number" value={financiamento.jurosDiario}
+              <label htmlFor="jurosDiario" className={labelCls} style={{ color: "var(--text-secondary)" }}>Juros Diário Atraso (%)</label>
+              <input id="jurosDiario" type="number" value={financiamento.jurosDiario}
                      onChange={(e) => setFinanciamento((p) => ({ ...p, jurosDiario: Number(e.target.value) }))}
                      min={0} step={0.01} className={inputCls} style={inputStyle} />
             </div>
@@ -569,21 +570,21 @@ export default function NovoContratoPage() {
                   { key: "placa",  label: "Placa",  ph: "ABC1D23", upper: true },
                 ].map(({ key, label, ph, upper }) => (
                   <div key={key}>
-                    <label className={labelCls} style={{ color: "var(--text-secondary)" }}>{label}</label>
-                    <input type="text" value={tradeIn[key as "marca" | "modelo" | "ano" | "placa"]}
+                    <label htmlFor={`tradeIn_${key}`} className={labelCls} style={{ color: "var(--text-secondary)" }}>{label}</label>
+                    <input id={`tradeIn_${key}`} type="text" value={tradeIn[key as "marca" | "modelo" | "ano" | "placa"]}
                            onChange={(e) => setTradeIn((p) => ({ ...p, [key]: upper ? e.target.value.toUpperCase() : e.target.value }))}
                            placeholder={ph} className={inputCls} style={inputStyle} />
                   </div>
                 ))}
                 <div className="col-span-2">
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Valor avaliado (R$)</label>
-                  <input type="number" value={tradeIn.valor || ""}
+                  <label htmlFor="tradeIn_valor" className={labelCls} style={{ color: "var(--text-secondary)" }}>Valor avaliado (R$)</label>
+                  <input id="tradeIn_valor" type="number" value={tradeIn.valor || ""}
                          onChange={(e) => setTradeIn((p) => ({ ...p, valor: Number(e.target.value) }))}
                          min={0} step={0.01} placeholder="0,00" className={inputCls} style={inputStyle} />
                 </div>
                 <div className="col-span-2">
-                  <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Observações do trade-in</label>
-                  <input type="text" value={tradeIn.notas}
+                  <label htmlFor="tradeIn_notas" className={labelCls} style={{ color: "var(--text-secondary)" }}>Observações do trade-in</label>
+                  <input id="tradeIn_notas" type="text" value={tradeIn.notas}
                          onChange={(e) => setTradeIn((p) => ({ ...p, notas: e.target.value }))}
                          placeholder="Estado, km, etc." className={inputCls} style={inputStyle} />
                 </div>
@@ -598,8 +599,8 @@ export default function NovoContratoPage() {
           </div>
 
           <div>
-            <label className={labelCls} style={{ color: "var(--text-secondary)" }}>Observações</label>
-            <textarea value={financiamento.notas}
+            <label htmlFor="notasFinanciamento" className={labelCls} style={{ color: "var(--text-secondary)" }}>Observações</label>
+            <textarea id="notasFinanciamento" value={financiamento.notas}
                       onChange={(e) => setFinanciamento((p) => ({ ...p, notas: e.target.value }))}
                       rows={2} className={inputCls} style={inputStyle} />
           </div>

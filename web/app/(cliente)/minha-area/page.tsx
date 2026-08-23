@@ -566,7 +566,7 @@ export default function MinhaAreaPage() {
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="font-bold text-gray-900">Solicitar Pagamento</h2>
-              <button onClick={() => setShowPayModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowPayModal(false)} aria-label="Fechar" className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -655,7 +655,7 @@ export default function MinhaAreaPage() {
                       </p>
                       <div className="flex items-center gap-2 bg-white rounded-lg border border-emerald-200 px-3 py-2">
                         <span className="text-sm font-mono text-gray-800 flex-1 break-all">{pixConfig.pixKey}</span>
-                        <button onClick={copyPix} className="text-emerald-600 hover:text-emerald-700 flex-shrink-0">
+                        <button onClick={copyPix} aria-label="Copiar chave PIX" className="text-emerald-600 hover:text-emerald-700 flex-shrink-0">
                           {copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                         </button>
                       </div>
@@ -682,6 +682,7 @@ export default function MinhaAreaPage() {
                         <button
                           type="button"
                           onClick={() => setProofFile(null)}
+                          aria-label="Remover comprovante"
                           className="text-gray-400 hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />

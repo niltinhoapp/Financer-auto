@@ -62,7 +62,7 @@ export default function ContratosPage() {
   );
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Contratos</h1>
@@ -104,69 +104,111 @@ export default function ContratosPage() {
           <p>Nenhum contrato encontrado</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                {sel.selecting && <th className="px-4 py-3 w-8" />}
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Cliente</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Veículo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Valor</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Parcelas</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Início</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((c) => {
-                const customer = customers[c.customerId];
-                const vehicle = vehicles[c.vehicleId];
-                return (
-                  <tr key={c.id} className="hover:bg-gray-50"
-                      style={{ cursor: sel.selecting ? "pointer" : undefined }}
-                      onClick={() => sel.selecting && sel.toggle(c.id)}>
-                    {sel.selecting && (
-                      <td className="px-4 py-3">
-                        <CheckExclusao checked={sel.isSelected(c.id)} onChange={() => sel.toggle(c.id)} />
-                      </td>
-                    )}
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {customer?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {vehicle ? `${vehicle.brand} ${vehicle.model}` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-900 font-medium">
-                      {formatCurrency(c.salePrice)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {c.installmentsCount}x {formatCurrency(c.installmentValue)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {formatDate(c.createdAt.split("T")[0])}
-                    </td>
-                    <td className="px-4 py-3">
+        <>
+          {/* Cards — mobile */}
+          <div className="space-y-2 md:hidden">
+            {filtered.map((c) => {
+              const customer = customers[c.customerId];
+              const vehicle = vehicles[c.vehicleId];
+              return (
+                <Link key={c.id} href={`/contratos/${c.id}`}
+                      onClick={(e) => { if (sel.selecting) { e.preventDefault(); sel.toggle(c.id); } }}
+                      className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors block">
+                  {sel.selecting && (
+                    <CheckExclusao checked={sel.isSelected(c.id)} onChange={() => sel.toggle(c.id)} />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-sm text-gray-900 truncate">
+                        {customer?.name ?? "—"}
+                      </p>
                       <span
-                        className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[c.status]}`}
+                        className={`flex-shrink-0 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColor[c.status]}`}
                       >
                         {statusLabel[c.status]}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/contratos/${c.id}`}
-                        className="text-blue-600 hover:text-blue-700 text-xs font-medium"
-                      >
-                        Ver
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      {vehicle ? `${vehicle.brand} ${vehicle.model}` : "—"}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs font-medium text-gray-900">{formatCurrency(c.salePrice)}</span>
+                      <span className="text-xs text-gray-500">
+                        {c.installmentsCount}x {formatCurrency(c.installmentValue)}
+                      </span>
+                      <span className="text-xs text-gray-500">{formatDate(c.createdAt.split("T")[0])}</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Tabela — desktop */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto hidden md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  {sel.selecting && <th className="px-4 py-3 w-8" />}
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Cliente</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Veículo</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Valor</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Parcelas</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Início</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((c) => {
+                  const customer = customers[c.customerId];
+                  const vehicle = vehicles[c.vehicleId];
+                  return (
+                    <tr key={c.id} className="hover:bg-gray-50"
+                        style={{ cursor: sel.selecting ? "pointer" : undefined }}
+                        onClick={() => sel.selecting && sel.toggle(c.id)}>
+                      {sel.selecting && (
+                        <td className="px-4 py-3">
+                          <CheckExclusao checked={sel.isSelected(c.id)} onChange={() => sel.toggle(c.id)} />
+                        </td>
+                      )}
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {customer?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {vehicle ? `${vehicle.brand} ${vehicle.model}` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-900 font-medium">
+                        {formatCurrency(c.salePrice)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {c.installmentsCount}x {formatCurrency(c.installmentValue)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {formatDate(c.createdAt.split("T")[0])}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[c.status]}`}
+                        >
+                          {statusLabel[c.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          href={`/contratos/${c.id}`}
+                          className="text-blue-600 hover:text-blue-700 text-xs font-medium"
+                        >
+                          Ver
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <sel.Bar itemLabel="contrato(s)" />

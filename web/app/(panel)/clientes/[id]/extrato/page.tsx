@@ -142,7 +142,7 @@ export default function ExtratoClientePage() {
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href={`/clientes/${id}`} style={{ color: "var(--text-muted)" }} className="hover:opacity-70 transition-opacity">
+        <Link href={`/clientes/${id}`} aria-label="Voltar para o cliente" style={{ color: "var(--text-muted)" }} className="hover:opacity-70 transition-opacity">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">

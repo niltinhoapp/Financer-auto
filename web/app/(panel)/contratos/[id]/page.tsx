@@ -503,6 +503,7 @@ export default function ContratoDetailPage() {
             </button>
           )}
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -658,6 +659,7 @@ export default function ContratoDetailPage() {
             })}
           </tbody>
         </table>
+        </div>
 
         {renegMode && (
           <div className="px-5 py-4 border-t border-gray-100 bg-amber-50 space-y-3">
@@ -1001,6 +1003,7 @@ export default function ContratoDetailPage() {
         {revisions.length === 0 ? (
           <p className="text-sm text-gray-400 px-5 py-6">Nenhuma revisão registrada ainda.</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -1023,6 +1026,7 @@ export default function ContratoDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
