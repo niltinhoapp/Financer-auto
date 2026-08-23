@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy, limit, where, collectionGroup } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit, where, collectionGroup, getCountFromServer } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/utils";
 import { todasReceitas } from "@/lib/receitas";
@@ -115,22 +115,25 @@ export default function DashboardPage() {
           getDocs(collection(db, "vehicles")),
           getDocs(collection(db, "payments")),
           getDocs(collectionGroup(db, "installments")),
-          getDocs(query(collection(db, "paymentRequests"), where("status", "==", "pending"))),
-          getDocs(query(collection(db, "leads"), where("status", "==", "new"))),
+          // Contagens usam agregação no servidor (getCountFromServer) em vez de
+          // baixar todos os documentos — mais rápido e sem risco de truncar com limit().
+          getCountFromServer(query(collection(db, "paymentRequests"), where("status", "==", "pending"))),
+          getCountFromServer(query(collection(db, "leads"), where("status", "==", "new"))),
         ]);
         results.forEach((r, i) => {
           if (r.status === "rejected") console.error(`Dashboard: consulta ${i} falhou:`, r.reason);
         });
         const docsOf = (i: number) => (results[i].status === "fulfilled" ? (results[i] as any).value.docs : []);
         const sizeOf = (i: number) => (results[i].status === "fulfilled" ? (results[i] as any).value.size : 0);
+        const countOf = (i: number) => (results[i].status === "fulfilled" ? (results[i] as any).value.data().count : 0);
 
         const contracts = docsOf(0).map((d: any) => ({ id: d.id, ...d.data() }));
         const customersSnap = { size: sizeOf(1) };
         const vehicles = docsOf(2).map((d: any) => d.data());
         const payments = docsOf(3).map((d: any) => d.data());
         const installments = docsOf(4).map((d: any) => d.data());
-        const reqsSnap = { size: sizeOf(5) };
-        const leadsSnap = { size: sizeOf(6) };
+        const reqsSnap = { size: countOf(5) };
+        const leadsSnap = { size: countOf(6) };
 
         // Receitas reais = pagamentos de parcelas + entradas em dinheiro dos contratos
         const receitas = todasReceitas(payments, contracts);

@@ -1,5 +1,6 @@
 // v2
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
 import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -97,8 +98,13 @@ export const criarAcessoCliente = onCall(async (request) => {
   }
 
   // Senha temporária legível para o admin entregar ao cliente
-  // (ex.: "fin-7392-auto"). O cliente é obrigado a trocá-la no primeiro acesso.
-  const tempPassword = `fin-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).slice(2, 6)}`;
+  // (ex.: "fin-482913-x7k2pq"). Usa crypto.randomInt/randomBytes (não Math.random,
+  // que não é seguro para segredos) e entropia suficiente para não ser viável
+  // de adivinhar por força bruta na janela até a troca obrigatória no primeiro acesso.
+  const tempPassword = `fin-${crypto.randomInt(100000, 999999)}-${crypto
+    .randomBytes(5)
+    .toString("base64url")
+    .slice(0, 6)}`;
 
   // Verifica se já existe Auth com esse email
   let uid: string;
