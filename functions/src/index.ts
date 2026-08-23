@@ -336,21 +336,59 @@ export const assinarContrato = onCall(async (request) => {
 
 // Registrar pagamento e atualizar parcela
 export const registerPayment = onCall(async (request) => {
-  if (!request.auth) {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
     throw new HttpsError("unauthenticated", "Não autenticado");
   }
 
-  const { contractId, installmentId, amount, method, notes } = request.data;
+  const { contractId, installmentId, amount, method, notes } = request.data as {
+    contractId: string;
+    installmentId: string;
+    amount: number;
+    method: string;
+    notes?: string;
+  };
 
-  const installmentRef = db
-    .collection("contracts")
-    .doc(contractId)
-    .collection("installments")
-    .doc(installmentId);
+  if (!contractId || !installmentId || !amount || !method) {
+    throw new HttpsError(
+      "invalid-argument",
+      "contractId, installmentId, amount e method são obrigatórios"
+    );
+  }
+
+  // Somente admin ou o vendedor dono do contrato podem registrar pagamentos
+  const callerDoc = await db.collection("users").doc(callerUid).get();
+  const callerRole = callerDoc.data()?.role;
+  if (callerRole !== "admin" && callerRole !== "seller") {
+    throw new HttpsError(
+      "permission-denied",
+      "Apenas administradores ou vendedores podem registrar pagamentos"
+    );
+  }
+
+  const contractRef = db.collection("contracts").doc(contractId);
+  const contractSnap = await contractRef.get();
+  if (!contractSnap.exists) {
+    throw new HttpsError("not-found", "Contrato não encontrado");
+  }
+  const contract = contractSnap.data();
+
+  if (callerRole === "seller" && contract?.sellerId !== callerUid) {
+    throw new HttpsError(
+      "permission-denied",
+      "Você só pode registrar pagamentos de contratos dos quais é o vendedor"
+    );
+  }
+
+  const installmentRef = contractRef.collection("installments").doc(installmentId);
 
   const installmentSnap = await installmentRef.get();
   if (!installmentSnap.exists) {
     throw new HttpsError("not-found", "Parcela não encontrada");
+  }
+
+  if (installmentSnap.data()?.status === "paid") {
+    throw new HttpsError("already-exists", "Esta parcela já foi paga");
   }
 
   const now = new Date().toISOString();
@@ -364,7 +402,7 @@ export const registerPayment = onCall(async (request) => {
     amount,
     method,
     paidAt: now,
-    registeredBy: request.auth.uid,
+    registeredBy: callerUid,
     notes: notes ?? "",
   });
 
@@ -378,22 +416,25 @@ export const registerPayment = onCall(async (request) => {
   });
 
   // Verificar se contrato está quitado
-  const allInstallments = await db
-    .collection("contracts")
-    .doc(contractId)
-    .collection("installments")
-    .get();
+  const allInstallments = await contractRef.collection("installments").get();
 
   const allPaid = allInstallments.docs.every(
     (d) => d.data().status === "paid" || d.id === installmentId
   );
 
   if (allPaid) {
-    await db.collection("contracts").doc(contractId).update({
+    await contractRef.update({
       status: "settled",
       updatedAt: now,
     });
   }
+
+  await auditar(
+    callerUid,
+    "pagamento_registrado",
+    `Registrou pagamento de R$ ${amount} (${method}) na parcela ${installmentId}`,
+    { tipo: "contrato", id: contractId }
+  );
 
   return { success: true, paymentId: paymentRef.id };
 });
