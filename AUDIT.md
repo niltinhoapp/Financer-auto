@@ -42,14 +42,18 @@ A função só checa `if (!request.auth)`, nunca valida `role`. Como usa Admin S
 
 **Ainda pendente:** rate-limiting no login (Firebase App Check ou Cloud Function de controle de tentativas) — decisão de infraestrutura maior, não incluída nesta rodada.
 
-**1.3 — Dependências vulneráveis (`npm audit`)**
+**1.3 — 🟡 PARCIALMENTE CORRIGIDO — Dependências vulneráveis (`npm audit`)**
 
 - `next` — múltiplas vulnerabilidades **High**: SSRF em Server Actions/rewrites, exposição não autenticada de endpoints internos de Server Functions, DoS via Image Optimization/SVG. Versão instalada está fora do range corrigido.
 - `postcss` (via next) — XSS em `</style>` não escapado, leitura arbitrária de arquivo via `sourceMappingURL`.
 - `js-yaml`, `fast-uri`, `brace-expansion`, `nanoid` — DoS/CPU quadrático (High).
 - `form-data` — CRLF injection (High).
 
-**Correção:** rodar `npm audit fix --force` em raiz e `web/`, testar regressões, e travar isso no CI (item 2.1 abaixo).
+**Correção aplicada (commits `6a88dab`, `0898de8`):**
+- `web/`: **0 vulnerabilidades** (era 8, 7 High). `npm audit fix` resolveu `js-yaml`/`nanoid`/`brace-expansion`/`fast-uri`/`form-data`; `next` atualizado manualmente de `16.2.7` para `^16.3.2` (dentro do range 16.x, sem pular major), o que também resolveu `postcss` e `sharp` (transitivos do Next).
+- raiz: reduzido de 33 para 26 vulnerabilidades (14 High → 8 High).
+
+**Deliberadamente NÃO corrigido:** as 26 restantes na raiz são todas em `expo`/`@expo/*`/`xcode` (workspace `mobile`) e `gaxios`/`google-gax`/`teeny-request` (via `firebase-admin`/`@google-cloud/firestore` no workspace `functions`). `npm audit fix --force` foi testado em modo `--dry-run` e **não é recomendado**: exigiria major upgrade do Expo e do SDK do Google Cloud, risco alto de quebra fora do escopo desta correção — fica como item de manutenção separado, com testes dedicados de regressão no app mobile e nas functions antes de aplicar.
 
 ---
 
@@ -220,7 +224,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 - [x] **[UX]** Adicionar confirmação em registrar pagamento / renegociação (3.2) — ✅ commit `32f28a5`
 
 ### Próximas 2 semanas (alto)
-- [ ] **[SEG]** Rodar `npm audit fix`, testar regressões (1.3) — 🔄 em andamento
+- [x] **[SEG]** Rodar `npm audit fix`, testar regressões (1.3) — ✅ commits `6a88dab`, `0898de8` (web: 0 vulns; raiz: 33→26, resto exige major upgrade de expo/google-gax, ver detalhe)
 - [x] **[SEG]** Aumentar entropia de senha temporária (1.2) — ✅ commit `6d2a41c` (rate-limit no login ainda pendente)
 - [x] **[CODE]** Criar workflow de CI (lint + typecheck + build) (2.1) — ✅ commit `6d2a41c`
 - [ ] **[CODE]** Corrigir os 94 erros de ESLint, priorizando `set-state-in-effect` (2.2) — 🔄 em andamento
