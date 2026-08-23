@@ -50,6 +50,7 @@ export default function ContratoDetailPage() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
   const [payAmount, setPayAmount] = useState(0);
+  const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null);
 
   // Renegociação
   const [renegMode, setRenegMode] = useState(false);
@@ -62,6 +63,7 @@ export default function ContratoDetailPage() {
     notes: "",
   });
   const [savingReneg, setSavingReneg] = useState(false);
+  const [confirmingReneg, setConfirmingReneg] = useState(false);
 
   // Garantia & Revisões
   const [warranty, setWarranty] = useState<Warranty | null>(null);
@@ -188,6 +190,7 @@ export default function ContratoDetailPage() {
       await updateContract(contract.id, { status: "settled" });
     }
     setPayingId(null);
+    setConfirmingPaymentId(null);
     load();
   }
 
@@ -263,10 +266,12 @@ export default function ContratoDetailPage() {
       setRenegMode(false);
       setRenegSelected(new Set());
       setRenegForm({ downPayment: 0, newInstallmentValue: 0, newInstallmentsCount: 1, primeiroVencimento: "", notes: "" });
+      setConfirmingReneg(false);
       await load();
     } catch (e) {
       console.error("Erro ao renegociar:", e);
       toast("Erro ao salvar renegociação.", "error");
+      setConfirmingReneg(false);
     } finally {
       setSavingReneg(false);
     }
@@ -564,6 +569,7 @@ export default function ContratoDetailPage() {
                             onClick={() => {
                               setPayingId(inst.id);
                               setPayAmount(valorAtual);
+                              setConfirmingPaymentId(null);
                             }}
                             className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                           >
@@ -605,14 +611,28 @@ export default function ContratoDetailPage() {
                               <option value="check">Cheque</option>
                             </select>
                           </div>
+                          {confirmingPaymentId !== inst.id ? (
+                            <button
+                              onClick={() => setConfirmingPaymentId(inst.id)}
+                              className="px-4 py-1.5 bg-emerald-600 text-white rounded text-sm font-medium hover:bg-emerald-700"
+                            >
+                              Confirmar
+                            </button>
+                          ) : (
+                            <span className="text-xs font-medium text-emerald-800">
+                              Confirma baixa de {formatCurrency(payAmount)}?
+                            </span>
+                          )}
+                          {confirmingPaymentId === inst.id && (
+                            <button
+                              onClick={() => registerPayment(inst)}
+                              className="px-4 py-1.5 bg-emerald-600 text-white rounded text-sm font-medium hover:bg-emerald-700"
+                            >
+                              Sim, confirmar
+                            </button>
+                          )}
                           <button
-                            onClick={() => registerPayment(inst)}
-                            className="px-4 py-1.5 bg-emerald-600 text-white rounded text-sm font-medium hover:bg-emerald-700"
-                          >
-                            Confirmar
-                          </button>
-                          <button
-                            onClick={() => setPayingId(null)}
+                            onClick={() => { setPayingId(null); setConfirmingPaymentId(null); }}
                             className="px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
                           >
                             Cancelar
@@ -684,16 +704,40 @@ export default function ContratoDetailPage() {
                 {renegForm.downPayment > 0 ? ` + entrada de ${formatCurrency(renegForm.downPayment)}` : ""})
               </p>
             )}
+            {confirmingReneg && (
+              <p className="text-xs font-medium text-amber-800">
+                Tem certeza? Isso altera {renegSelected.size} parcela(s) permanentemente e não pode ser desfeito.
+              </p>
+            )}
             <div className="flex gap-2">
+              {!confirmingReneg ? (
+                <button
+                  onClick={() => {
+                    if (renegSelected.size === 0) {
+                      toast("Selecione ao menos uma parcela para renegociar.", "error");
+                      return;
+                    }
+                    if (renegForm.newInstallmentValue <= 0 || renegForm.newInstallmentsCount <= 0 || !renegForm.primeiroVencimento) {
+                      toast("Preencha o valor da nova parcela, a quantidade e o primeiro vencimento.", "error");
+                      return;
+                    }
+                    setConfirmingReneg(true);
+                  }}
+                  className="px-4 py-1.5 bg-amber-600 text-white rounded text-sm font-medium hover:bg-amber-700"
+                >
+                  Confirmar renegociação
+                </button>
+              ) : (
+                <button
+                  onClick={handleSaveRenegociacao}
+                  disabled={savingReneg}
+                  className="px-4 py-1.5 bg-amber-600 text-white rounded text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {savingReneg ? "Salvando..." : "Sim, confirmar"}
+                </button>
+              )}
               <button
-                onClick={handleSaveRenegociacao}
-                disabled={savingReneg}
-                className="px-4 py-1.5 bg-amber-600 text-white rounded text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
-              >
-                {savingReneg ? "Salvando..." : "Confirmar renegociação"}
-              </button>
-              <button
-                onClick={() => { setRenegMode(false); setRenegSelected(new Set()); }}
+                onClick={() => { setRenegMode(false); setRenegSelected(new Set()); setConfirmingReneg(false); }}
                 className="px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
               >
                 Cancelar
