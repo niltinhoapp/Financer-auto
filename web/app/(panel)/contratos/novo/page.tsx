@@ -295,9 +295,17 @@ export default function NovoContratoPage() {
               </div>
               {user?.role === "admin" && (
                 <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={docsOverride}
+                    onChange={(e) => setDocsOverride(e.target.checked)}
+                    aria-label="Liberar venda mesmo assim"
+                    className="sr-only peer"
+                  />
                   <div
-                    className="w-10 h-6 rounded-full transition-colors relative flex-shrink-0"
-                    onClick={() => setDocsOverride(!docsOverride)}
+                    aria-hidden="true"
+                    className="w-10 h-6 rounded-full transition-colors relative flex-shrink-0 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:[outline-color:var(--accent)]"
                     style={{ background: docsOverride ? "#f59e0b" : "var(--bg-hover)", border: "1px solid var(--border)" }}
                   >
                     <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${docsOverride ? "left-5" : "left-1"}`} />
@@ -379,10 +387,19 @@ export default function NovoContratoPage() {
 
           {/* Modo manual */}
           <div className="p-4 rounded-xl space-y-1" style={{ border: "1px solid var(--border)" }}>
-            <label className="flex items-center gap-3 cursor-pointer"
-                   onClick={() => setFinanciamento((p) => ({ ...p, modoManual: !p.modoManual }))}>
-              <div className="w-10 h-6 rounded-full relative flex-shrink-0 transition-colors"
-                   style={{ background: financiamento.modoManual ? "var(--accent)" : "var(--bg-hover)", border: "1px solid var(--border)" }}>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={financiamento.modoManual}
+                onChange={(e) => setFinanciamento((p) => ({ ...p, modoManual: e.target.checked }))}
+                aria-label="Negócio combinado manualmente"
+                className="sr-only peer"
+              />
+              <div
+                aria-hidden="true"
+                className="w-10 h-6 rounded-full relative flex-shrink-0 transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:[outline-color:var(--accent)]"
+                style={{ background: financiamento.modoManual ? "var(--accent)" : "var(--bg-hover)", border: "1px solid var(--border)" }}>
                 <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${financiamento.modoManual ? "left-5" : "left-1"}`} />
               </div>
               <div>
@@ -518,9 +535,19 @@ export default function NovoContratoPage() {
 
           {/* Trade-in */}
           <div className="p-4 rounded-xl space-y-3" style={{ border: "1px solid var(--border)" }}>
-            <label className="flex items-center gap-3 cursor-pointer" onClick={() => setTradeIn((p) => ({ ...p, ativo: !p.ativo }))}>
-              <div className="w-10 h-6 rounded-full relative flex-shrink-0 transition-colors"
-                   style={{ background: tradeIn.ativo ? "var(--accent)" : "var(--bg-hover)", border: "1px solid var(--border)" }}>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={tradeIn.ativo}
+                onChange={(e) => setTradeIn((p) => ({ ...p, ativo: e.target.checked }))}
+                aria-label="Veículo de entrada (trade-in)"
+                className="sr-only peer"
+              />
+              <div
+                aria-hidden="true"
+                className="w-10 h-6 rounded-full relative flex-shrink-0 transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:[outline-color:var(--accent)]"
+                style={{ background: tradeIn.ativo ? "var(--accent)" : "var(--bg-hover)", border: "1px solid var(--border)" }}>
                 <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${tradeIn.ativo ? "left-5" : "left-1"}`} />
               </div>
               <div className="flex items-center gap-2">
