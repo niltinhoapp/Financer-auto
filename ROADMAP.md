@@ -42,7 +42,11 @@ Implementado em 3 commits isolados, cada um validado (`tsc`+`eslint`+`build`) e 
 
 **Pendência explícita (não bloqueia uso):** `excluirFinanceiro` (Cloud Function de exclusão) não foi criada — `excluirVendedorFn` existente só aceita alvos com `role === "seller"`, então não dá pra reaproveitar. Criar quando for necessário desativar um usuário financeiro.
 
-### ⏳ 1.2 Pós-venda — auditar estrutura existente (garantia/revisão), sem WhatsApp ainda
+### ✅ 1.2 Pós-venda — CONCLUÍDO (2026-08-23)
+
+Auditoria (commit `fc41b2d`): estrutura de garantia/revisão já sólida — `Warranty`/`Revision` com vínculos reais (`contractId`/`vehicleId`/`customerId`), CRUD funcional, tela do cliente completa. Zero automação no backend (confirmado por grep em `functions/src/index.ts`). Único gap real pra reengajamento futuro: nenhum dos dois tipos guardava quando era a **próxima** manutenção esperada — só o histórico do que já foi feito.
+
+Mudança mínima e aditiva: `Revision.nextDueDate?: string` — 1 input opcional no formulário existente, exibido na tabela do admin e na tela do cliente. Sem Cloud Function, sem regra nova, sem cron, sem WhatsApp (fica pra Fase 7).
 ### ⏳ 1.3 Comissionamento — auditar cálculo/persistência, preparar distinção vendedor × correspondente
 ### ⏳ 1.4 Fluxo financeiro — mapear Venda→recebimento→receita→despesa→resultado, avaliar DRE derivado
 
