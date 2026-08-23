@@ -26,6 +26,16 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() in ['admin', 'seller'];
     }
 
+    function isFinanceiro() {
+      return isAuthenticated() && getUserRole() == 'financial';
+    }
+
+    // Qualquer papel interno da loja (admin, vendedor ou financeiro) —
+    // usado para leituras/ações que não distinguem entre esses três.
+    function isStaff() {
+      return isAuthenticated() && getUserRole() in ['admin', 'seller', 'financial'];
+    }
+
     function isCustomer() {
       return isAuthenticated() && getUserRole() == 'customer';
     }
@@ -81,7 +91,7 @@ service cloud.firestore {
 
     // Contracts
     match /contracts/{contractId} {
-      allow read: if isAdmin()
+      allow read: if isAdmin() || isFinanceiro()
         || (isSeller() && resource.data.sellerId == request.auth.uid)
         || (isCustomer() && resource.data.customerId == myCustomerId());
       allow create: if isAdminOrSeller();
@@ -90,10 +100,13 @@ service cloud.firestore {
 
       // Installments subcollection
       match /installments/{installmentId} {
-        allow read: if isAdmin()
+        allow read: if isAdmin() || isFinanceiro()
           || (isSeller() && getContract().sellerId == request.auth.uid)
           || (isCustomer() && getContract().customerId == myCustomerId());
-        allow create, update: if isAdmin();
+        // Financeiro registra baixa de pagamento (Recebimentos grava direto
+        // no Firestore, não via Cloud Function) — por isso precisa de update.
+        allow create: if isAdmin();
+        allow update: if isAdmin() || isFinanceiro();
         allow delete: if isAdmin();
       }
     }
@@ -102,15 +115,15 @@ service cloud.firestore {
     // Fluxo de Caixa). As regras aninhadas acima NÃO se aplicam a
     // collectionGroup() — esta regra dedicada é necessária.
     match /{path=**}/installments/{installmentId} {
-      allow read: if isAdminOrSeller();
+      allow read: if isStaff();
     }
 
     // Payments
     match /payments/{paymentId} {
-      allow read: if isAdmin()
+      allow read: if isAdmin() || isFinanceiro()
         || (isSeller() && resource.data.registeredBy == request.auth.uid)
         || (isCustomer() && resource.data.customerId == myCustomerId());
-      allow create: if isAdmin();
+      allow create: if isAdmin() || isFinanceiro();
       allow update, delete: if isAdmin();
     }
 
@@ -138,9 +151,10 @@ service cloud.firestore {
 
     // Payment Requests (solicitações de pagamento criadas pelo cliente)
     match /paymentRequests/{reqId} {
-      allow read: if isAdmin() || (isCustomer() && resource.data.customerId == myCustomerId());
+      allow read: if isAdmin() || isFinanceiro() || (isCustomer() && resource.data.customerId == myCustomerId());
       allow create: if isCustomer() && request.resource.data.customerId == myCustomerId();
-      allow update, delete: if isAdmin();
+      // Confirmar/recusar solicitação é a ação principal da tela de Recebimentos.
+      allow update, delete: if isAdmin() || isFinanceiro();
     }
 
     // Config (chave PIX, dados da empresa)
@@ -177,37 +191,40 @@ service cloud.firestore {
 
     // Commissions
     match /commissions/{commissionId} {
-      allow read: if isAdmin()
+      allow read: if isAdmin() || isFinanceiro()
         || (isSeller() && resource.data.sellerId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      // Criar/excluir comissão é decisão de negócio (admin). Marcar como paga
+      // é operação de tesouraria — financeiro também pode.
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isFinanceiro();
     }
 
     // Expenses (despesas operacionais — fluxo de caixa)
     match /expenses/{expenseId} {
-      allow read: if isAdminOrSeller();
-      allow create, update, delete: if isAdmin();
+      allow read: if isStaff();
+      allow create, update, delete: if isAdmin() || isFinanceiro();
     }
 
     // Stats (agregados do dashboard) — leitura por staff, escrita só pela function
     match /stats/{docId} {
-      allow read: if isAdminOrSeller();
+      allow read: if isStaff();
       allow write: if false;
     }
 
     // Notifications (avisos de vencimento/cobrança gerados pelo robô diário)
     match /notifications/{notifId} {
-      allow read, update: if isAdminOrSeller();
+      allow read, update: if isStaff();
       // Criação somente pela Cloud Function (Admin SDK)
       allow create, delete: if isAdmin();
     }
 
-    // Audit logs — criação restrita a admin/seller (autores legítimos via
+    // Audit logs — criação restrita a papéis internos (autores legítimos via
     // registrarAuditoria() no painel). Um customer/prospect autenticado não
     // tem motivo para escrever aqui; abrir para isAuthenticated() permitia
     // forjar entradas na trilha de auditoria.
     match /audit/{logId} {
       allow read: if isAdmin();
-      allow create: if isAdminOrSeller()
+      allow create: if isStaff()
         && request.resource.data.atorUid == request.auth.uid;
       allow update, delete: if false;
     }
