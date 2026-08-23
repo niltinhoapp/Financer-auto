@@ -54,7 +54,13 @@ Auditoria (commit `64ae438`): `comissoes/page.tsx` já tem lançamento manual, a
 **Achados colaterais registrados, não corrigidos** (fora do escopo desta fase): `vehicleName`/`customerName` gravados com valores incorretos (parecem placeholder de código incompleto); `tab`/`setTab`/`filteredComm` são código morto (sem botões de aba na UI).
 
 Mudança: `Commission.type?: "seller"|"correspondent"|"other"`, `sellerId` virou opcional, `partnerId`/`partnerName` adicionados — só o tipo, a página não foi tocada. Fica pronto pra quando a Fase 4/5 precisar persistir comissão de correspondente.
-### ⏳ 1.4 Fluxo financeiro — mapear Venda→recebimento→receita→despesa→resultado, avaliar DRE derivado
+### ✅ 1.4 Fluxo financeiro — CONCLUÍDO (2026-08-23)
+
+Mapeamento (commit `00ae5cb`): `Venda (downPayment) + parcela paga (payments) → todasReceitas() → financeiro/page.tsx`, junto com despesas por categoria → saldo do mês. A página já calculava tudo isso — confirmado que um DRE simplificado é 100% derivável dos dados existentes, sem tabela nova, exatamente como pedido ("priorizar cálculo derivado").
+
+Único gap: a categoria `compra_veiculo` (já existente em `ExpenseCategory`) estava misturada com despesa operacional, sem separação de custo direto. Adicionado card "DRE Simplificado" (Receita Bruta → Custo de Aquisição → Lucro Bruto → Despesas Operacionais → Resultado Líquido), calculado só reagrupando dados que a página já carregava — matematicamente igual ao `saldo` que já existia, só apresentado com estrutura de DRE. Sem Firestore novo, sem Cloud Function, sem conciliação Asaas.
+
+**Fase 1 (Consolidar o que já existe) — completa: 1.1 ✅ 1.2 ✅ 1.3 ✅ 1.4 ✅**
 
 ---
 
@@ -182,11 +188,11 @@ Conecta o que já existe (veículo + cliente) com acompanhamento de negociação
 ## Ordem de execução sugerida
 
 1. [x] Checkpoint real do estado atual do Financer Auto — feito (seção 0 acima)
-2. **Fase 1 — Consolidar o que já existe** (menor risco, interno)
-   - [x] 1.1 Gestão de acesso (role `financial`) — ver detalhe acima, commits `a95aea3`/`4fc0d12`/`0ca03dc`
-   - [ ] 1.2 Pós-venda (auditar garantia/revisão existentes)
-   - [ ] 1.3 Comissionamento (auditar cálculo, preparar distinção vendedor × correspondente)
-   - [ ] 1.4 Fluxo financeiro (mapear venda→recebimento→receita→despesa→resultado, avaliar DRE)
+2. **Fase 1 — Consolidar o que já existe** (menor risco, interno) — ✅ COMPLETA
+   - [x] 1.1 Gestão de acesso (role `financial`) — commits `a95aea3`/`4fc0d12`/`0ca03dc`
+   - [x] 1.2 Pós-venda (`Revision.nextDueDate`) — commit `fc41b2d`
+   - [x] 1.3 Comissionamento (`Commission.type`/`partnerId`) — commit `64ae438`
+   - [x] 1.4 Fluxo financeiro (DRE simplificado derivado) — commit `00ae5cb`
 3. [ ] **Fase 2 — CRM** → em cima do cadastro de veículo/cliente já existente (pipeline incremental, não tudo de uma vez)
 4. [ ] **Fase 3 — Contratos e documentação** → estabilizar CRM→cliente→veículo→negociação→contrato antes de avaliar CRLV/laudo/assinatura terceirizada
 5. [ ] **Fase 4 — Asaas/Pix** (área crítica — levantamento completo antes de codar: auth, sandbox, subcontas, split, webhook, idempotência)
