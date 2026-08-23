@@ -4,141 +4,226 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getVehicles } from "@/lib/firestore/vehicles";
 import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { excluirVeiculoFn } from "@/lib/functions";
+import { useSelecaoExclusao, CheckExclusao } from "@/components/admin/SelecaoExclusao";
 import type { Vehicle, VehicleStatus } from "@financer-auto/shared";
-import { Plus, Search, Car } from "lucide-react";
+import { Plus, Search, Car, Gauge, Calendar } from "lucide-react";
 
-const statusLabel: Record<VehicleStatus, string> = {
-  available: "Disponível",
-  reserved: "Reservado",
-  sold: "Vendido",
-  warranty: "Em Garantia",
-};
-
-const statusColor: Record<VehicleStatus, string> = {
-  available: "bg-emerald-100 text-emerald-700",
-  reserved: "bg-amber-100 text-amber-700",
-  sold: "bg-gray-100 text-gray-600",
-  warranty: "bg-blue-100 text-blue-700",
+const statusCfg: Record<VehicleStatus, { label: string; bg: string; color: string }> = {
+  available: { label: "Disponível", bg: "#10b98118", color: "#10b981" },
+  reserved:  { label: "Reservado",  bg: "#f59e0b18", color: "#f59e0b" },
+  sold:      { label: "Vendido",    bg: "#94a3b818", color: "#94a3b8" },
+  warranty:  { label: "Em Garantia",bg: "#3b82f618", color: "#3b82f6" },
 };
 
 export default function VeiculosPage() {
+  const { user } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState("");
 
-  useEffect(() => {
-    getVehicles()
-      .then(setVehicles)
-      .finally(() => setLoading(false));
-  }, []);
+  function load() {
+    return getVehicles().then(setVehicles).finally(() => setLoading(false));
+  }
+  useEffect(() => { load(); }, []);
+
+  const sel = useSelecaoExclusao(
+    async (id) => { await excluirVeiculoFn({ vehicleId: id }); },
+    load
+  );
 
   const filtered = vehicles.filter((v) => {
-    const matchesSearch =
-      !search ||
-      `${v.brand} ${v.model} ${v.plate}`.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = !search || `${v.brand} ${v.model} ${v.plate}`.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !filterStatus || v.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Veículos</h1>
-          <p className="text-gray-500 text-sm mt-1">{vehicles.length} cadastrados</p>
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Veículos</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>{vehicles.length} cadastrados</p>
         </div>
-        <Link
-          href="/veiculos/novo"
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Veículo
-        </Link>
+        <div className="flex items-center gap-2">
+          {user?.role === "admin" && <sel.ToggleButton />}
+          <Link href="/veiculos/novo"
+                className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                style={{ background: "var(--accent-gradient)" }}>
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Novo Veículo</span>
+            <span className="sm:hidden">Novo</span>
+          </Link>
+        </div>
       </div>
 
-      <div className="flex gap-3 mb-6">
+      {/* Filtros */}
+      <div className="flex gap-2 mb-5">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por marca, modelo ou placa..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-muted)" }} />
+          <input type="text" placeholder="Buscar marca, modelo, placa..."
+                 value={search} onChange={(e) => setSearch(e.target.value)}
+                 className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm"
+                 style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)" }} />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Todos os status</option>
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2.5 rounded-xl text-sm"
+                style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
+          <option value="">Todos</option>
           <option value="available">Disponível</option>
           <option value="reserved">Reservado</option>
           <option value="sold">Vendido</option>
-          <option value="warranty">Em Garantia</option>
+          <option value="warranty">Garantia</option>
         </select>
+      </div>
+
+      {/* Status badges */}
+      <div className="flex gap-2 flex-wrap mb-5">
+        {(Object.entries(statusCfg) as [VehicleStatus, (typeof statusCfg)[VehicleStatus]][]).map(([k, v]) => {
+          const count = vehicles.filter((ve) => ve.status === k).length;
+          if (!count) return null;
+          return (
+            <button key={k} onClick={() => setFilterStatus(filterStatus === k ? "" : k)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all"
+                    style={{
+                      background: filterStatus === k ? v.bg : "var(--bg-hover)",
+                      color: filterStatus === k ? v.color : "var(--text-secondary)",
+                      border: `1px solid ${filterStatus === k ? v.color + "40" : "var(--border)"}`,
+                    }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: v.color }} />
+              {v.label} ({count})
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          <div className="animate-spin rounded-full h-8 w-8 border-4"
+               style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <Car className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p>Nenhum veículo encontrado</p>
+        <div className="card py-14 text-center">
+          <Car className="w-10 h-10 mx-auto mb-3 opacity-20" style={{ color: "var(--text-muted)" }} />
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Nenhum veículo encontrado</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Veículo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Placa</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Ano</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Km</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Preço</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((v) => (
-                <tr key={v.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    {v.brand} {v.model}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600 font-mono">{v.plate}</td>
-                  <td className="px-4 py-3 text-gray-600">{v.year}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {v.mileage.toLocaleString("pt-BR")} km
-                  </td>
-                  <td className="px-4 py-3 text-gray-900 font-medium">
-                    {formatCurrency(v.price)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[v.status]}`}
-                    >
-                      {statusLabel[v.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/veiculos/${v.id}`}
-                      className="text-blue-600 hover:text-blue-700 text-xs font-medium"
-                    >
-                      Ver
-                    </Link>
-                  </td>
+        <>
+          {/* Grid mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:hidden">
+            {filtered.map((v) => {
+              const s = statusCfg[v.status];
+              return (
+                <Link key={v.id} href={`/veiculos/${v.id}`}
+                      onClick={(e) => { if (sel.selecting) { e.preventDefault(); sel.toggle(v.id); } }}
+                      className="card p-4 flex gap-3 hover:scale-[1.01] transition-transform items-center">
+                  {sel.selecting && (
+                    <CheckExclusao checked={sel.isSelected(v.id)} onChange={() => sel.toggle(v.id)} />
+                  )}
+                  {/* Foto ou ícone */}
+                  <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0"
+                       style={{ background: "var(--bg-hover)" }}>
+                    {v.photos?.[0]
+                      ? <img src={v.photos[0]} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center">
+                          <Car className="w-6 h-6 opacity-30" style={{ color: "var(--text-muted)" }} />
+                        </div>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="font-semibold text-sm truncate" style={{ color: "var(--text-primary)" }}>
+                        {v.brand} {v.model}
+                      </p>
+                      <span className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium"
+                            style={{ background: s.bg, color: s.color }}>
+                        {s.label}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold mt-1" style={{ color: "var(--accent)" }}>
+                      {formatCurrency(v.price)}
+                    </p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                        <Calendar className="w-3 h-3" />{v.year}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                        <Gauge className="w-3 h-3" />{v.mileage.toLocaleString("pt-BR")} km
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Tabela desktop */}
+          <div className="card overflow-hidden hidden md:block">
+            <table className="w-full text-sm">
+              <thead style={{ background: "var(--bg-hover)", borderBottom: "1px solid var(--border)" }}>
+                <tr>
+                  {sel.selecting && <th className="px-4 py-3 w-8" />}
+                  {["Veículo","Placa","Ano","Quilometragem","Preço de Venda","Status",""].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold"
+                        style={{ color: "var(--text-secondary)" }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((v) => {
+                  const s = statusCfg[v.status];
+                  return (
+                    <tr key={v.id} style={{ borderBottom: "1px solid var(--border)", cursor: sel.selecting ? "pointer" : undefined }}
+                        onClick={() => sel.selecting && sel.toggle(v.id)}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "")}>
+                      {sel.selecting && (
+                        <td className="px-4 py-3">
+                          <CheckExclusao checked={sel.isSelected(v.id)} onChange={() => sel.toggle(v.id)} />
+                        </td>
+                      )}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0"
+                               style={{ background: "var(--bg-hover)" }}>
+                            {v.photos?.[0]
+                              ? <img src={v.photos[0]} alt="" className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center">
+                                  <Car className="w-4 h-4 opacity-40" style={{ color: "var(--text-muted)" }} />
+                                </div>
+                            }
+                          </div>
+                          <span className="font-medium" style={{ color: "var(--text-primary)" }}>
+                            {v.brand} {v.model}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-muted)" }}>{v.plate}</td>
+                      <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{v.year}</td>
+                      <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{v.mileage.toLocaleString("pt-BR")} km</td>
+                      <td className="px-4 py-3 font-medium" style={{ color: "var(--text-primary)" }}>{formatCurrency(v.price)}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium"
+                              style={{ background: s.bg, color: s.color }}>{s.label}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link href={`/veiculos/${v.id}`}
+                              className="text-xs font-medium hover:opacity-70"
+                              style={{ color: "var(--accent)" }}>Ver</Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
+
+      <sel.Bar itemLabel="veículo(s)" />
     </div>
   );
 }
