@@ -22,13 +22,13 @@
 
 ### 🔴 CRÍTICO
 
-**1.1 — `functions/src/index.ts:338-399` — `registerPayment` sem verificação de role**
+**1.1 — ✅ CORRIGIDO — `functions/src/index.ts:338-399` — `registerPayment` sem verificação de role**
 
 A função só checa `if (!request.auth)`, nunca valida `role`. Como usa Admin SDK (ignora `firestore.rules`), **qualquer usuário autenticado — inclusive um `customer`** — pode chamar `registerPayment({contractId, installmentId, amount, method})` diretamente via SDK, para qualquer contrato/parcela, mesmo sem ser o dono.
 
 **Exploração concreta:** um cliente mal-intencionado pode "quitar" o próprio financiamento sem pagar, ou adulterar parcelas de outro cliente — marcando-as como `paid`, gravando registros falsos em `payments`, e se todas ficarem pagas, mudando `contract.status` para `settled`.
 
-**Correção:** adicionar checagem de `role === 'admin' || role === 'seller'` no início da função, igual já é feito em `assinarContrato` (linha 273) e `uploadComprovante` (linha 401).
+**Correção aplicada (commit `91248dd`):** agora exige `role === 'admin' || role === 'seller'`, valida que o seller é dono do contrato (`contract.sellerId === callerUid`), valida campos obrigatórios, rejeita parcela já paga, e registra em `audit/`.
 
 ---
 
@@ -202,7 +202,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 ## 📋 Plano de Ação Priorizado
 
 ### Esta semana (crítico)
-- [ ] **[SEG]** Corrigir `registerPayment` — adicionar checagem de role (1.1)
+- [x] **[SEG]** Corrigir `registerPayment` — adicionar checagem de role (1.1) — ✅ commit `91248dd`
 - [ ] **[UX]** Corrigir toggles inacessíveis em `contratos/novo` (3.1)
 - [ ] **[UX]** Adicionar confirmação em registrar pagamento / renegociação (3.2)
 
