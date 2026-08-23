@@ -6,3 +6,4 @@ export * from "./types/warranty";
 export * from "./types/commission";
 export * from "./types/paymentRequest";
 export * from "./types/expense";
+export * from "./connectors/base.connector";
