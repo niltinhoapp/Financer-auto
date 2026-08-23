@@ -3,16 +3,19 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useAuth } from "@/hooks/useAuth";
 import { createVehicle } from "@/lib/firestore/vehicles";
 import { updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { uploadFotoVeiculoFn } from "@/lib/functions";
-import type { VehicleType } from "@financer-auto/shared";
-import { ArrowLeft, Camera, X, Upload, Image as ImageIcon, GripVertical } from "lucide-react";
+import { ArrowLeft, Camera, X, Upload, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 
 const MAX_PHOTOS = 5;
+const CURRENT_YEAR = new Date().getFullYear();
 
 interface PhotoItem {
   file: File;
@@ -25,6 +28,25 @@ interface PhotoItem {
 const labelCls = "block text-xs font-medium mb-1";
 const inputCls = "w-full px-3 py-2.5 rounded-xl text-sm";
 const inputStyle = { background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)" };
+const errorInputStyle = { ...inputStyle, borderColor: "#ef4444" };
+
+// Mesmas exigências que já existiam no HTML nativo (required/min/max), agora
+// com mensagens visíveis em vez de só o balão de validação do navegador.
+const veiculoSchema = z.object({
+  type: z.enum(["car", "motorcycle", "truck", "utility"]),
+  plate: z.string().min(1, "Informe a placa."),
+  brand: z.string().min(1, "Informe a marca."),
+  model: z.string().min(1, "Informe o modelo."),
+  year: z.number().min(1950, "Ano inválido.").max(CURRENT_YEAR + 1, "Ano inválido."),
+  color: z.string(),
+  mileage: z.number().min(0, "Quilometragem não pode ser negativa."),
+  chassis: z.string(),
+  purchasePrice: z.number().min(0, "Preço de compra inválido."),
+  price: z.number().min(0, "Informe o preço de venda."),
+  features: z.string(),
+});
+
+type VeiculoFormValues = z.infer<typeof veiculoSchema>;
 
 export default function NovoVeiculoPage() {
   const router = useRouter();
@@ -36,23 +58,31 @@ export default function NovoVeiculoPage() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [dragOver, setDragOver] = useState(false);
 
-  const [form, setForm] = useState({
-    type: "car" as VehicleType,
-    brand: "",
-    model: "",
-    year: new Date().getFullYear(),
-    color: "",
-    plate: "",
-    chassis: "",
-    mileage: 0,
-    price: 0,
-    purchasePrice: 0,
-    features: "",
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<VeiculoFormValues>({
+    resolver: zodResolver(veiculoSchema),
+    defaultValues: {
+      type: "car",
+      brand: "",
+      model: "",
+      year: CURRENT_YEAR,
+      color: "",
+      plate: "",
+      chassis: "",
+      mileage: 0,
+      price: 0,
+      purchasePrice: 0,
+      features: "",
+    },
   });
 
-  function set(key: string, value: unknown) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+  const brand = watch("brand");
+  const model = watch("model");
 
   function addFiles(files: FileList | null) {
     if (!files) return;
@@ -105,15 +135,14 @@ export default function NovoVeiculoPage() {
     return urls;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(data: VeiculoFormValues) {
     if (!user) return;
     setSaving(true);
     setError("");
     try {
       // 1. Cria o veículo com photos vazio
       const id = await createVehicle({
-        ...form,
+        ...data,
         status: "available",
         photos: [],
         createdBy: user.uid,
@@ -146,7 +175,7 @@ export default function NovoVeiculoPage() {
         <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Novo Veículo</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 
         {/* Fotos */}
         <div className="card p-5">
@@ -170,7 +199,7 @@ export default function NovoVeiculoPage() {
               {photos.map((p, i) => (
                 <div key={i} className="relative aspect-square rounded-xl overflow-hidden group"
                      style={{ border: i === 0 ? "2px solid var(--accent)" : "2px solid var(--border)" }}>
-                  <img src={p.preview} alt={form.brand && form.model ? `${form.brand} ${form.model}` : `Foto ${i + 1} do veículo`} className="w-full h-full object-cover" />
+                  <img src={p.preview} alt={brand && model ? `${brand} ${model}` : `Foto ${i + 1} do veículo`} className="w-full h-full object-cover" />
 
                   {/* Badge principal */}
                   {i === 0 && (
@@ -285,7 +314,7 @@ export default function NovoVeiculoPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="type" className={labelCls} style={{ color: "var(--text-secondary)" }}>Tipo</label>
-              <select id="type" value={form.type} onChange={(e) => set("type", e.target.value)}
+              <select id="type" {...register("type")}
                       className={inputCls} style={inputStyle}>
                 <option value="car">Carro</option>
                 <option value="motorcycle">Moto</option>
@@ -295,66 +324,83 @@ export default function NovoVeiculoPage() {
             </div>
             <div>
               <label htmlFor="plate" className={labelCls} style={{ color: "var(--text-secondary)" }}>Placa</label>
-              <input id="plate" type="text" value={form.plate} onChange={(e) => set("plate", e.target.value.toUpperCase())}
-                     required maxLength={8} placeholder="ABC-1234"
-                     className={`${inputCls} font-mono`} style={inputStyle} />
+              <input id="plate" type="text" {...register("plate")}
+                     value={watch("plate")}
+                     onChange={(e) => setValue("plate", e.target.value.toUpperCase(), { shouldValidate: true })}
+                     maxLength={8} placeholder="ABC-1234"
+                     className={`${inputCls} font-mono`} style={errors.plate ? errorInputStyle : inputStyle} />
+              {errors.plate && <p className="text-xs mt-1" style={{ color: "#ef4444" }}>{errors.plate.message}</p>}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="brand" className={labelCls} style={{ color: "var(--text-secondary)" }}>Marca</label>
-              <input id="brand" type="text" value={form.brand} onChange={(e) => set("brand", e.target.value)}
-                     required placeholder="Toyota, Honda..." className={inputCls} style={inputStyle} />
+              <input id="brand" type="text" {...register("brand")}
+                     placeholder="Toyota, Honda..." className={inputCls} style={errors.brand ? errorInputStyle : inputStyle} />
+              {errors.brand && <p className="text-xs mt-1" style={{ color: "#ef4444" }}>{errors.brand.message}</p>}
             </div>
             <div>
               <label htmlFor="model" className={labelCls} style={{ color: "var(--text-secondary)" }}>Modelo</label>
-              <input id="model" type="text" value={form.model} onChange={(e) => set("model", e.target.value)}
-                     required placeholder="Corolla, Civic..." className={inputCls} style={inputStyle} />
+              <input id="model" type="text" {...register("model")}
+                     placeholder="Corolla, Civic..." className={inputCls} style={errors.model ? errorInputStyle : inputStyle} />
+              {errors.model && <p className="text-xs mt-1" style={{ color: "#ef4444" }}>{errors.model.message}</p>}
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label htmlFor="year" className={labelCls} style={{ color: "var(--text-secondary)" }}>Ano</label>
-              <input id="year" type="number" value={form.year} onChange={(e) => set("year", Number(e.target.value))}
-                     required min={1950} max={new Date().getFullYear() + 1}
-                     className={inputCls} style={inputStyle} />
+              <input id="year" type="number" {...register("year")}
+                     value={watch("year")}
+                     onChange={(e) => setValue("year", Number(e.target.value), { shouldValidate: true })}
+                     min={1950} max={CURRENT_YEAR + 1}
+                     className={inputCls} style={errors.year ? errorInputStyle : inputStyle} />
+              {errors.year && <p className="text-xs mt-1" style={{ color: "#ef4444" }}>{errors.year.message}</p>}
             </div>
             <div>
               <label htmlFor="color" className={labelCls} style={{ color: "var(--text-secondary)" }}>Cor</label>
-              <input id="color" type="text" value={form.color} onChange={(e) => set("color", e.target.value)}
+              <input id="color" type="text" {...register("color")}
                      placeholder="Prata, Preto..." className={inputCls} style={inputStyle} />
             </div>
             <div>
               <label htmlFor="mileage" className={labelCls} style={{ color: "var(--text-secondary)" }}>Quilometragem</label>
-              <input id="mileage" type="number" value={form.mileage || ""} onChange={(e) => set("mileage", Number(e.target.value))}
+              <input id="mileage" type="number" {...register("mileage")}
+                     value={watch("mileage") || ""}
+                     onChange={(e) => setValue("mileage", Number(e.target.value), { shouldValidate: true })}
                      min={0} placeholder="0" className={inputCls} style={inputStyle} />
             </div>
           </div>
 
           <div>
             <label htmlFor="chassis" className={labelCls} style={{ color: "var(--text-secondary)" }}>Chassi</label>
-            <input id="chassis" type="text" value={form.chassis} onChange={(e) => set("chassis", e.target.value.toUpperCase())}
+            <input id="chassis" type="text" {...register("chassis")}
+                   value={watch("chassis")}
+                   onChange={(e) => setValue("chassis", e.target.value.toUpperCase())}
                    placeholder="17 caracteres" className={`${inputCls} font-mono`} style={inputStyle} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="purchasePrice" className={labelCls} style={{ color: "var(--text-secondary)" }}>Preço de Compra (R$)</label>
-              <input id="purchasePrice" type="number" value={form.purchasePrice || ""} onChange={(e) => set("purchasePrice", Number(e.target.value))}
+              <input id="purchasePrice" type="number" {...register("purchasePrice")}
+                     value={watch("purchasePrice") || ""}
+                     onChange={(e) => setValue("purchasePrice", Number(e.target.value), { shouldValidate: true })}
                      min={0} step={0.01} placeholder="0,00" className={inputCls} style={inputStyle} />
             </div>
             <div>
               <label htmlFor="price" className={labelCls} style={{ color: "var(--text-secondary)" }}>Preço de Venda (R$) <span style={{ color: "#ef4444" }}>*</span></label>
-              <input id="price" type="number" value={form.price || ""} onChange={(e) => set("price", Number(e.target.value))}
-                     required min={0} step={0.01} placeholder="0,00" className={inputCls} style={inputStyle} />
+              <input id="price" type="number" {...register("price")}
+                     value={watch("price") || ""}
+                     onChange={(e) => setValue("price", Number(e.target.value), { shouldValidate: true })}
+                     min={0} step={0.01} placeholder="0,00" className={inputCls} style={errors.price ? errorInputStyle : inputStyle} />
+              {errors.price && <p className="text-xs mt-1" style={{ color: "#ef4444" }}>{errors.price.message}</p>}
             </div>
           </div>
 
           <div>
             <label htmlFor="features" className={labelCls} style={{ color: "var(--text-secondary)" }}>Opcionais / Observações</label>
-            <textarea id="features" value={form.features} onChange={(e) => set("features", e.target.value)}
+            <textarea id="features" {...register("features")}
                       rows={3} placeholder="Ar condicionado, direção hidráulica, rodas de liga..."
                       className={inputCls} style={inputStyle} />
           </div>
