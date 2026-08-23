@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getContract, getInstallments, getPayments, updateInstallment, renegotiateInstallments, updateContract } from "@/lib/firestore/contracts";
+import { excluirContratoFn } from "@/lib/functions";
 import { getCustomer } from "@/lib/firestore/customers";
 import { getVehicle } from "@/lib/firestore/vehicles";
 import { getWarrantyByContract, createWarranty, updateWarranty } from "@/lib/firestore/warranties";
@@ -40,7 +41,10 @@ const StatusIcon = ({ status }: { status: string }) => {
 export default function ContratoDetailPage() {
   const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { user } = useAuth();
+  const [confirmDeleteContract, setConfirmDeleteContract] = useState(false);
+  const [deletingContract, setDeletingContract] = useState(false);
   const [contract, setContract] = useState<Contract | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -1013,6 +1017,54 @@ export default function ContratoDetailPage() {
           </table>
         )}
       </div>
+
+      {/* ── Zona de perigo: excluir contrato (somente admin) ── */}
+      {user?.role === "admin" && (
+        <div className="bg-white rounded-xl border border-red-200 p-5 mt-6">
+          <h2 className="text-sm font-semibold text-red-600 mb-1">Excluir contrato</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Remove o contrato, todas as parcelas, pagamentos e documentos vinculados. Esta ação não pode ser desfeita.
+            {paidCount > 0 && ` Atenção: este contrato já tem ${paidCount} parcela(s) paga(s).`}
+          </p>
+          {!confirmDeleteContract ? (
+            <button
+              onClick={() => setConfirmDeleteContract(true)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-50 text-red-600 border border-red-600"
+            >
+              Excluir este contrato
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-medium text-gray-800">Tem certeza? Esta ação não pode ser desfeita.</p>
+              <button
+                onClick={async () => {
+                  setDeletingContract(true);
+                  try {
+                    await excluirContratoFn({ contractId: id });
+                    toast("Contrato excluído.", "success");
+                    router.replace("/contratos");
+                  } catch (e) {
+                    const message = e instanceof Error ? e.message : "Erro ao excluir contrato.";
+                    toast(message, "error");
+                    setDeletingContract(false);
+                    setConfirmDeleteContract(false);
+                  }
+                }}
+                disabled={deletingContract}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 bg-red-600"
+              >
+                {deletingContract ? "Excluindo..." : "Sim, excluir"}
+              </button>
+              <button
+                onClick={() => setConfirmDeleteContract(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
