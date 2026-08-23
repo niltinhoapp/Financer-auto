@@ -14,7 +14,7 @@
 | Código/Arquitetura | 0 | 3 | 5 | 3 |
 | UI/UX & Acessibilidade | 3 | 7 | 4 | — |
 
-**Status:** ✅ Todos os 4 críticos (1.1, 3.1, 3.2, 3.3) e todos os 5 achados de prioridade alta (1.2, 1.3, 2.1, 2.2, 2.3) já foram corrigidos ou mitigados — ver detalhes em cada seção e o checklist no plano de ação. Restam os itens de prioridade média/baixa e dois itens parcialmente resolvidos com justificativa (1.3: vulnerabilidades de `expo`/`google-gax` exigem major upgrade; 2.3: `recebimentos`/`comissoes` precisam de arquitetura de agregação, não um patch rápido).
+**Status:** ✅ Todos os 4 críticos, todos os 5 achados de prioridade alta e todos os 7 achados de prioridade média (1.4, 1.6, 2.4, 2.5, 2.8, 3.4, 3.6–3.10) já foram corrigidos ou mitigados — ver detalhes em cada seção e o checklist no plano de ação. Restam apenas itens de prioridade baixa/nice-to-have, e três itens parcialmente resolvidos com justificativa técnica documentada: 1.3 (vulnerabilidades de `expo`/`google-gax` exigem major upgrade), 2.3 (`recebimentos`/`comissoes` precisam de arquitetura de agregação, não um patch rápido) e 3.4 (`contratos/novo` deliberadamente não migrado para react-hook-form — ganhou validação Zod defensiva em vez disso).
 
 ---
 
@@ -192,7 +192,15 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 
 ### 🟠 IMPORTANTE (frustra usuário)
 
-**3.4** — Formulários sem `react-hook-form`/`zod` — validação manual e inconsistente entre `clientes/novo`, `veiculos/novo`, `contratos/novo`. `veiculos/novo/page.tsx:38-50` nem tem validação central.
+**3.4 — ✅ CORRIGIDO** — Formulários sem `react-hook-form`/`zod` — validação manual e inconsistente entre `clientes/novo`, `veiculos/novo`, `contratos/novo`. `veiculos/novo/page.tsx:38-50` nem tinha validação central.
+
+**Correção aplicada:**
+- `clientes/novo` (commit `9cd4925`) e `veiculos/novo` (commit `7c8e8c1`) migrados para `react-hook-form` + `zod`, com schema equivalente ao `validate()`/constraints HTML originais, verificado com 10 e 11 casos de teste respectivamente.
+- `contratos/novo` — **deliberadamente NÃO migrado para react-hook-form.** É um wizard de 4 passos sem `<form onSubmit>`, com campos que trocam de tipo dinamicamente (nº de parcelas vira `<select>` ou `<input>` conforme o toggle "modo manual") e cálculos financeiros que precisam recalcular a cada tecla — RHF não se encaixa nesse modelo, e reescrever tudo sem browser disponível pra testar traria risco desproporcional no fluxo mais sensível do sistema (é onde o dinheiro entra). A arquitetura `useState` do wizard foi mantida integralmente.
+  Em vez disso (commit `88bf00e`): criado `web/lib/contractPayloadSchema.ts` — schema Zod testável isoladamente, executado dentro de `handleSave()` imediatamente antes de `createContract()`. Cobre os dois modos de negociação (financiamento calculado com juros vs. negócio combinado manualmente), validando cliente/veículo selecionados, preço > 0, entrada ≥ 0, coerência entrada-total × preço (vale nos dois modos), parcelas inteiras > 0, data de vencimento válida, valor financiado > 0 (só no modo calculado), valor da parcela > 0 (só no modo manual), taxas não-negativas, dados obrigatórios do trade-in quando ativo, e a mesma regra de documentos/override que já existia nos botões `disabled` — replicada, não endurecida. Em falha: bloqueia `createContract()`, mostra erro via `toast`/`setError`, e registra só os nomes dos campos que falharam no Sentry (`captureMessage` em nível `warning`, sem exceção completa nem dados pessoais — é validação de entrada esperada, não bug).
+  Verificado com 31 casos de teste cobrindo os dois modos, incluindo as regras que só valem num modo ou no outro.
+
+Nenhuma migração pôde ser testada em navegador interativo neste ambiente (sem pane visual disponível) — verificação feita via `tsc --noEmit`, `eslint`, `npm run build`, e testes unitários standalone do schema (Node) comparando exatamente contra o comportamento de validação original.
 
 **3.5** — Erros técnicos do backend vazando pro usuário — `toast(e?.message)` repassa texto cru do Firebase (`functions/permission-denied`) direto na tela em `clientes/page.tsx:59` e `clientes/[id]/page.tsx:697`.
 
@@ -244,7 +252,7 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 - [x] Adicionar headers de segurança no `next.config.ts` (1.6) — ✅ commit `b1e8272` (CSP completa fica de follow-up)
 - [x] Padronizar tratamento de erro com toast + Sentry (2.4, 2.8) — ✅ commit `b4b5de7`
 - [x] Consolidar `formatCurrency()` nos arquivos duplicados (2.5) — ✅ commit `e8deeae`
-- [ ] Migrar formulários pra `react-hook-form` + `zod` (3.4)
+- [x] Migrar formulários pra `react-hook-form` + `zod` (3.4) — ✅ commits `9cd4925`, `7c8e8c1`, `88bf00e` (contratos/novo manteve useState + ganhou validação Zod defensiva, ver detalhe acima)
 - [x] Adicionar scroll/cards mobile em `contratos` (3.6) — ✅ commit `e87c1ea`
 - [x] Corrigir labels/aria-labels em formulários (3.7, 3.9, 3.10) — ✅ commit `e87c1ea`
 
