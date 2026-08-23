@@ -125,7 +125,15 @@ Mesmo princípio já usado no DRE simplificado (Fase 1.4): derivar primeiro, cri
 
 **Nenhuma alteração estrutural neste bloco** — nem collection nova, nem migration, nem máquina de estados, nem novo status.
 
-### ⏳ 2.4 Veículos de interesse (plural)
+### ✅ 2.4 Veículos de interesse — DECISÃO TOMADA, sem alteração estrutural (2026-08-23)
+
+**PRE-CHECK** (busca global por `vehicleId(s)`, `interest/interesse`, `favorite/favorito`, `reserved/reservation`): `Lead.vehicleId` é escrito só em `VeiculoDetalhe.tsx` (formulário "Tenho Interesse", que fica **dentro da página de um único veículo**) e lido só em `leads/page.tsx` (link "Ver veículo"). Zero ocorrência de `vehicleIds[]`. "Favoritos" só existe como texto de marketing (`loja/acesso/page.tsx`), sem estrutura de dados. `"reserved"` é status do próprio `Vehicle`, desacoplado de Lead/Customer.
+
+**Achado decisivo:** o fluxo já resolve "interesse em vários veículos" — só que via **múltiplos Leads** (1 submissão do formulário = 1 veículo = 1 Lead), correlacionáveis por telefone/e-mail/`userId`, não um array dentro de um único Lead.
+
+**DECISÃO APROVADA: Modelo C — nada implementado.** `vehicleIds[]` exigiria redesenhar o formulário da loja pública (um "carrinho de interesse" que não existe hoje) — não seria uma alteração pequena/aditiva. Modelo permanece: **1 Lead = 1 submissão de interesse em 1 veículo**; múltiplos interesses da mesma pessoa continuam sendo múltiplos Leads. Se necessidade de agrupamento surgir no futuro, é view derivada (`query leads where phone == X`), mesmo princípio do Modelo C do Bloco 2.3.
+
+**Verificação paralela (visualização de `sellerId` por outro seller):** confirmado no código do Bloco 2.2 — um seller vendo o lead de outro seller enxerga só `"Vendedor responsável atribuído"` (genérico), nunca nome ou UID. Já está correto, nenhuma mudança necessária.
 
 ### ⏳ 2.5 Follow-up/lembretes (WhatsApp fica pra Fase 7)
 
