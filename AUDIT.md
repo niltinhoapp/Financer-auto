@@ -59,21 +59,21 @@ A função só checa `if (!request.auth)`, nunca valida `role`. Como usa Admin S
 
 ### 🟡 MÉDIO
 
-**1.4 — `firestore.rules:207` — `audit/{logId}` criável por qualquer autenticado**
+**1.4 — ✅ CORRIGIDO — `firestore.rules:207` — `audit/{logId}` criável por qualquer autenticado**
 
-`allow create: if isAuthenticated();` sem checar o autor real. Qualquer cliente autenticado pode escrever diretamente na coleção `audit` com dados forjados via SDK, poluindo a trilha de auditoria — grave para um sistema financeiro que depende dela para rastreabilidade e LGPD.
+`allow create: if isAuthenticated();` sem checar o autor real. Qualquer cliente autenticado podia escrever diretamente na coleção `audit` com dados forjados via SDK, poluindo a trilha de auditoria — grave para um sistema financeiro que depende dela para rastreabilidade e LGPD.
 
-**Correção:** restringir `create` a admin/seller, ou validar que `request.resource.data.atorUid == request.auth.uid`.
+**Correção aplicada (commit `b1e8272`):** `create` restrito a `isAdminOrSeller()` e validado que `request.resource.data.atorUid == request.auth.uid`. Confirmado que só páginas `(panel)` (admin/seller) chamam `registrarAuditoria()` — nenhum fluxo de cliente precisa dessa escrita.
 
 **1.5 — Chave da API WhatsApp sem validação de destino**
 
-`functions/src/index.ts:751-861` — `wa.apiKey` enviado em plaintext no header. Leitura/escrita do doc já é restrita a admin (ok), mas não há validação de que `wa.apiUrl` aponta pra domínio confiável — risco residual de SSRF interno se admin for comprometido.
+`functions/src/index.ts:751-861` — `wa.apiKey` enviado em plaintext no header. Leitura/escrita do doc já é restrita a admin (ok), mas não há validação de que `wa.apiUrl` aponta pra domínio confiável — risco residual de SSRF interno se admin for comprometido. Não corrigido nesta rodada (risco residual baixo, exige admin já comprometido).
 
-**1.6 — `next.config.ts` sem headers de segurança**
+**1.6 — ✅ CORRIGIDO — `next.config.ts` sem headers de segurança**
 
-Não há `headers()` com CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Strict-Transport-Security`. Para um app com upload de CPF/RG/comprovantes e assinatura de contrato, isso deixa exposto a clickjacking (iframe malicioso reproduzindo o fluxo de assinatura).
+Não havia `headers()` com CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Strict-Transport-Security`. Para um app com upload de CPF/RG/comprovantes e assinatura de contrato, isso deixava exposto a clickjacking (iframe malicioso reproduzindo o fluxo de assinatura).
 
-**Correção:** adicionar `headers()` em `next.config.ts` com CSP mínima e `X-Frame-Options: DENY`.
+**Correção aplicada (commit `b1e8272`):** adicionado `headers()` com `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` negando câmera/microfone/geolocalização (não usados pelo app). **CSP completa deliberadamente não incluída** — exige testar em navegador real contra Firebase/Sentry/recharts; uma CSP quebrada seria pior que nenhuma. Fica como follow-up.
 
 ---
 
@@ -234,8 +234,8 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 - [x] **[UX]** Adicionar fluxo de exclusão de contrato individual (3.3) — ✅ commit `420be03`
 
 ### Próximo mês (médio)
-- [ ] Restringir `create` em `audit/` a admin/seller (1.4)
-- [ ] Adicionar headers de segurança no `next.config.ts` (1.6)
+- [x] Restringir `create` em `audit/` a admin/seller (1.4) — ✅ commit `b1e8272`
+- [x] Adicionar headers de segurança no `next.config.ts` (1.6) — ✅ commit `b1e8272` (CSP completa fica de follow-up)
 - [ ] Padronizar tratamento de erro com toast + Sentry (2.4, 2.8)
 - [ ] Consolidar `formatCurrency()` nos 12 arquivos duplicados (2.5)
 - [ ] Migrar formulários pra `react-hook-form` + `zod` (3.4)
