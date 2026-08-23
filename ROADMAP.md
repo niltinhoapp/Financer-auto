@@ -143,7 +143,7 @@ Mesmo princípio já usado no DRE simplificado (Fase 1.4): derivar primeiro, cri
 
 **Timezone:** conversão `datetime-local` (input do navegador) ↔ ISO8601 (armazenado) feita via getters locais do `Date` (`getHours`/`getFullYear`/etc.) nos dois sentidos — evita o bug clássico de salvar num fuso e reler deslocado.
 
-**"Hoje" vs. "Atrasado":** deliberadamente **não** compara o instante exato — usa início do dia local como limiar, então um follow-up de hoje às 9h continua aparecendo como "Hoje" (não "Atrasado") quando visto às 14h. Exatamente o cuidado pedido no PRE-CHECK.
+**"Hoje" vs. "Atrasado" — CORRIGIDO (commit `06367ac`):** a versão original comparava "atrasado" contra o início do dia local, deliberadamente pra evitar "follow-up de hoje às 9h aparecer atrasado às 14h" — essa interpretação estava **errada**. A regra correta (aprovada explicitamente): `nextFollowUpAt < agora` (instante real, não início do dia). "Hoje" e "Atrasados" são filtros **independentes, não excludentes** — um follow-up de hoje às 9h corretamente aparece nos dois ao mesmo tempo quando visto às 14h. "Hoje" continua comparando dia de calendário local (`isSameLocalDay`, nunca esteve errado); só o limiar de "Atrasado" mudou. Validado com 6 casos obrigatórios (referência 23/08/2026 14:00), todos passando.
 
 **Achado corrigido durante a validação:** a auditoria de "concluído" originalmente não registrava a nota/data concluída. Como o Modelo A só guarda 1 follow-up por vez (um novo agendamento sobrescreve o anterior), essa informação seria perdida pra sempre sem estar no audit. Corrigido antes do commit — a descrição da auditoria de conclusão agora inclui o que foi concluído.
 
