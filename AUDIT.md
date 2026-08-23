@@ -124,9 +124,11 @@ Destaques recorrentes:
 
 Só 7 de ~17 páginas do painel têm `catch` visível nas funções de carregamento. Nas demais, exceção sobe sem tratamento (tela em branco/loading infinito) ou só há `console.error` sem feedback ao usuário.
 
-**2.5 — Duplicação de formatação de moeda**
+**2.5 — ✅ CORRIGIDO — Duplicação de formatação de moeda**
 
-`formatCurrency()` já existe em `web/lib/utils.ts:8`, mas **12 arquivos** reimplementam `toLocaleString("pt-BR", {...})` manualmente. Qualquer mudança de formato exige editar 12 lugares.
+`formatCurrency()` já existe em `web/lib/utils.ts:8`, mas alguns arquivos reimplementavam `toLocaleString("pt-BR", {...})`/`Intl.NumberFormat` manualmente. Qualquer mudança de formato exigia editar cada um separadamente.
+
+**Correção aplicada (commit `e8deeae`):** ao investigar, o escopo real era menor que os "12 arquivos" estimados na auditoria original — a maioria já usava `formatCurrency` corretamente. Consolidados 4 casos reais de duplicação byte-a-byte idêntica: `gerarContrato.ts`, `gerarExtrato.ts`, `gerarPromissoria.ts` (commitados) e `loja/[id]/page.tsx` (corrigido no disco, aguarda commit junto da feature "loja" ainda não commitada). Casos como quilometragem, timestamps e valor por extenso foram deliberadamente deixados de fora — não são duplicação de `formatCurrency`, são formatações com propósito diferente.
 
 **2.6 — Arquivos grandes demais**
 
@@ -190,15 +192,15 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 
 **3.5** — Erros técnicos do backend vazando pro usuário — `toast(e?.message)` repassa texto cru do Firebase (`functions/permission-denied`) direto na tela em `clientes/page.tsx:59` e `clientes/[id]/page.tsx:697`.
 
-**3.6** — Tabela de contratos sem scroll horizontal nem versão mobile — `contratos/page.tsx:107-169` usa `overflow-hidden` (corta conteúdo) em vez de `overflow-x-auto`, sem cards `md:hidden` como `clientes`/`veiculos` já têm. Mesmo problema em parcelas/revisões (`contratos/[id]/page.tsx:489-628, 948-969`).
+**3.6 — ✅ CORRIGIDO** — Tabela de contratos sem scroll horizontal nem versão mobile — `contratos/page.tsx:107-169` usava `overflow-hidden` (corta conteúdo) em vez de `overflow-x-auto`, sem cards `md:hidden` como `clientes`/`veiculos` já tinham. Mesmo problema em parcelas/revisões (`contratos/[id]/page.tsx:489-628, 948-969`). **Correção (commit `e87c1ea`):** versão mobile em cards replicando o padrão existente, tabela desktop com `overflow-x-auto`, wrapper de scroll nas tabelas de parcelas/revisões.
 
-**3.7** — Labels não associados via `htmlFor`/`id` em `clientes/novo`, `veiculos/novo`, `contratos/novo`, `clientes/[id]` — leitor de tela não anuncia o rótulo ao focar o input.
+**3.7 — ✅ CORRIGIDO** — Labels não associados via `htmlFor`/`id` em `clientes/novo`, `veiculos/novo`, `contratos/novo`, `clientes/[id]` — leitor de tela não anunciava o rótulo ao focar o input. **Correção (commit `e87c1ea`):** todos os campos desses 4 formulários (39 campos no total) ganharam `id`/`htmlFor` correspondentes.
 
-**3.8** — Modal de restrição sem `role="dialog"`, sem foco automático, botão de fechar sem `aria-label` (`clientes/[id]/page.tsx:324-345`).
+**3.8** — Modal de restrição sem `role="dialog"`, sem foco automático. Botão de fechar já ganhou `aria-label` no commit `e87c1ea`; `role="dialog"` + foco automático ficam pendentes.
 
-**3.9** — Botões só-ícone sem `aria-label` — voltar, remover foto, marcar principal, aprovar/recusar documento usam apenas `title` (não confiável para leitor de tela/toque).
+**3.9 — ✅ CORRIGIDO** — Botões só-ícone sem `aria-label` — voltar, remover foto, marcar principal, aprovar/recusar documento, fechar modal, copiar PIX/link, excluir despesa/oficina usavam apenas `title` (não confiável para leitor de tela/toque). **Correção (commit `e87c1ea`):** `aria-label` adicionado em todos, `title` mantido onde já existia.
 
-**3.10** — `<img>` de veículo com `alt=""` — tratado como decorativo quando é conteúdo informativo (`veiculos/novo/page.tsx:168`, `veiculos/page.tsx:130,193`).
+**3.10 — ✅ CORRIGIDO** — `<img>` de veículo com `alt=""` — tratado como decorativo quando é conteúdo informativo (`veiculos/novo/page.tsx:168`, `veiculos/page.tsx:130,193`). **Correção (commit `e87c1ea`):** alt agora usa `"{marca} {modelo}"` (com índice da foto quando aplicável) em `veiculos/page.tsx`, `veiculos/[id]/page.tsx` e `VeiculoDetalhe.tsx`.
 
 ---
 
@@ -237,10 +239,10 @@ Nenhum `*.test.ts`/`*.spec.ts` no projeto. Maior ROI: `web/lib/financiamento.ts`
 - [x] Restringir `create` em `audit/` a admin/seller (1.4) — ✅ commit `b1e8272`
 - [x] Adicionar headers de segurança no `next.config.ts` (1.6) — ✅ commit `b1e8272` (CSP completa fica de follow-up)
 - [ ] Padronizar tratamento de erro com toast + Sentry (2.4, 2.8)
-- [ ] Consolidar `formatCurrency()` nos 12 arquivos duplicados (2.5)
+- [x] Consolidar `formatCurrency()` nos arquivos duplicados (2.5) — ✅ commit `e8deeae`
 - [ ] Migrar formulários pra `react-hook-form` + `zod` (3.4)
-- [ ] Adicionar scroll/cards mobile em `contratos` (3.6)
-- [ ] Corrigir labels/aria-labels em formulários (3.7, 3.9, 3.10)
+- [x] Adicionar scroll/cards mobile em `contratos` (3.6) — ✅ commit `e87c1ea`
+- [x] Corrigir labels/aria-labels em formulários (3.7, 3.9, 3.10) — ✅ commit `e87c1ea`
 
 ### Backlog (baixo / nice-to-have)
 - [ ] Extrair componentes dos 5 arquivos gigantes (2.6)
