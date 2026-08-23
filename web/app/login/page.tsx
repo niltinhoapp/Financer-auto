@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
   const { login, user, loading: authLoading } = useAuth();
@@ -11,6 +13,23 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
+
+  async function handleForgotPassword() {
+    setError("");
+    setResetMsg("");
+    if (!email.trim()) {
+      setError("Digite seu e-mail acima e clique em \"Esqueci minha senha\" novamente.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetMsg("E-mail de recuperação enviado! Verifique sua caixa de entrada (e o spam).");
+    } catch {
+      // Não revela se o e-mail existe ou não (segurança)
+      setResetMsg("Se este e-mail estiver cadastrado, você receberá o link de recuperação.");
+    }
+  }
 
   // O login() apenas autentica; o AuthContext popula `user` de forma assíncrona
   // (onAuthStateChanged + busca do perfil no Firestore). Redirecionar aqui via
@@ -85,6 +104,11 @@ export default function LoginPage() {
                 {error}
               </p>
             )}
+            {resetMsg && (
+              <p className="text-sm text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg">
+                {resetMsg}
+              </p>
+            )}
 
             <button
               type="submit"
@@ -92,6 +116,14 @@ export default function LoginPage() {
               className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {loading ? "Entrando..." : "Entrar"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="w-full text-center text-sm text-blue-600 hover:underline"
+            >
+              Esqueci minha senha
             </button>
           </form>
         </div>

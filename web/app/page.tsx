@@ -11,21 +11,23 @@ export default function Home() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace("/login");
+      router.replace("/loja");
     } else if (user.role === "admin") {
       router.replace("/dashboard");
     } else if (user.role === "seller") {
-      router.replace("/clientes");
+      router.replace("/veiculos");
     } else if (user.role === "customer") {
       router.replace("/minha-area");
     } else {
-      router.replace("/login");
+      // prospect → vai para a loja
+      router.replace("/loja");
     }
   }, [user, loading, router]);
 
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+    <div className="flex h-full items-center justify-center" style={{ background: "var(--bg-primary)" }}>
+      <div className="animate-spin rounded-full h-10 w-10 border-4"
+           style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }} />
     </div>
   );
 }
