@@ -19,13 +19,13 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
     Promise.resolve().then(() => setSidebarOpen(false));
   }, [pathname]);
 
-  const isStaff = user?.role === "admin" || user?.role === "seller";
+  const isStaff = user?.role === "admin" || user?.role === "seller" || user?.role === "financial";
 
   useEffect(() => {
     if (loading) return;
     if (!user) router.replace("/login");
     else if (user.role === "customer") router.replace("/minha-area");
-    else if (user.role !== "admin" && user.role !== "seller") router.replace("/loja"); // prospect/visitante não acessa o painel
+    else if (user.role !== "admin" && user.role !== "seller" && user.role !== "financial") router.replace("/loja"); // prospect/visitante não acessa o painel
   }, [user, loading, router]);
 
   if (loading || (user && !isStaff)) {

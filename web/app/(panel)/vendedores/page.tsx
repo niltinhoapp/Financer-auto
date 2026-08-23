@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { getUsersByRole } from "@/lib/firestore/users";
 import { getContracts } from "@/lib/firestore/contracts";
-import { criarVendedorFn, excluirVendedorFn } from "@/lib/functions";
+import { criarVendedorFn, excluirVendedorFn, criarFinanceiroFn } from "@/lib/functions";
 import { formatCurrency } from "@/lib/utils";
 import type { User } from "@financer-auto/shared";
-import { Plus, UserCog, Trash2 } from "lucide-react";
+import { Plus, UserCog, Trash2, Wallet } from "lucide-react";
 
 import { useToast } from "@/components/ui/Toast";
 export default function VendedoresPage() {
@@ -22,10 +22,22 @@ export default function VendedoresPage() {
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
 
+  // Financeiro (perfil separado — só recebe/registra pagamentos, sem estatística de vendas)
+  const [financeiroUsers, setFinanceiroUsers] = useState<User[]>([]);
+  const [showFinanceiroForm, setShowFinanceiroForm] = useState(false);
+  const [savingFinanceiro, setSavingFinanceiro] = useState(false);
+  const [financeiroError, setFinanceiroError] = useState("");
+  const [financeiroForm, setFinanceiroForm] = useState({ name: "", email: "", phone: "", password: "" });
+
   async function load() {
     try {
-      const [s, contracts] = await Promise.all([getUsersByRole("seller"), getContracts()]);
+      const [s, contracts, f] = await Promise.all([
+        getUsersByRole("seller"),
+        getContracts(),
+        getUsersByRole("financial"),
+      ]);
       setSellers(s);
+      setFinanceiroUsers(f);
       const byUid: Record<string, { count: number; totalSold: number }> = {};
       contracts.forEach((c) => {
         if (!c.sellerId) return;
@@ -39,6 +51,7 @@ export default function VendedoresPage() {
       Sentry.captureException(err);
       toast("Não foi possível carregar os vendedores. Tente novamente.", "error");
       setSellers([]);
+      setFinanceiroUsers([]);
     } finally {
       setLoading(false);
     }
@@ -72,6 +85,33 @@ export default function VendedoresPage() {
       setError(message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCreateFinanceiro(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingFinanceiro(true);
+    setFinanceiroError("");
+    try {
+      await criarFinanceiroFn({
+        name: financeiroForm.name,
+        email: financeiroForm.email,
+        phone: financeiroForm.phone,
+        password: financeiroForm.password,
+      });
+      setShowFinanceiroForm(false);
+      setFinanceiroForm({ name: "", email: "", phone: "", password: "" });
+      load();
+    } catch (err: unknown) {
+      console.error("Erro ao criar usuário financeiro:", err);
+      Sentry.captureException(err);
+      const message =
+        (err as { message?: string; details?: string })?.details ??
+        (err as Error)?.message ??
+        "Erro ao criar usuário financeiro.";
+      setFinanceiroError(message);
+    } finally {
+      setSavingFinanceiro(false);
     }
   }
 
@@ -242,6 +282,128 @@ export default function VendedoresPage() {
                       <Trash2 className="w-3.5 h-3.5" />
                       {deletingUid === s.uid ? "Excluindo..." : "Excluir"}
                     </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Financeiro (perfil separado, sem estatística de vendas) ── */}
+      <div className="flex items-center justify-between mt-10 mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Financeiro</h2>
+          <p className="text-gray-500 text-sm mt-1">{financeiroUsers.length} cadastrado(s)</p>
+        </div>
+        <button
+          onClick={() => setShowFinanceiroForm(true)}
+          className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Novo Financeiro
+        </button>
+      </div>
+
+      {showFinanceiroForm && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+          <h3 className="font-semibold text-gray-800 mb-4">Novo Usuário Financeiro</h3>
+          <form onSubmit={handleCreateFinanceiro} className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+              <input
+                required
+                value={financeiroForm.name}
+                onChange={(e) => setFinanceiroForm((p) => ({ ...p, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+              <input
+                type="email"
+                required
+                value={financeiroForm.email}
+                onChange={(e) => setFinanceiroForm((p) => ({ ...p, email: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+              <input
+                value={financeiroForm.phone}
+                onChange={(e) => setFinanceiroForm((p) => ({ ...p, phone: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Senha Inicial</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={financeiroForm.password}
+                onChange={(e) => setFinanceiroForm((p) => ({ ...p, password: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            {financeiroError && (
+              <div className="col-span-2">
+                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{financeiroError}</p>
+              </div>
+            )}
+            <div className="col-span-2 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowFinanceiroForm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={savingFinanceiro}
+                className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {savingFinanceiro ? "Salvando..." : "Criar Financeiro"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? null : financeiroUsers.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <Wallet className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <p>Nenhum usuário financeiro cadastrado</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Telefone</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {financeiroUsers.map((f) => (
+                <tr key={f.uid} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-900">{f.name}</td>
+                  <td className="px-4 py-3 text-gray-600">{f.email}</td>
+                  <td className="px-4 py-3 text-gray-600">{f.phone}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                        f.active
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {f.active ? "Ativo" : "Inativo"}
+                    </span>
                   </td>
                 </tr>
               ))}

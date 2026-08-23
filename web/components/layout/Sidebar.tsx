@@ -41,11 +41,23 @@ const sellerNav = [
   { href: "/leads",     label: "Leads",     icon: Zap },
 ];
 
+const financeiroNav = [
+  { href: "/dashboard",     label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/recebimentos",  label: "Recebimentos",   icon: DollarSign },
+  { href: "/inadimplencia", label: "Inadimplência",  icon: AlertTriangle },
+  { href: "/comissoes",     label: "Comissões",      icon: TrendingUp },
+  { href: "/financeiro",    label: "Fluxo de Caixa", icon: Wallet },
+  { href: "/relatorios",    label: "Relatórios",     icon: BarChart3 },
+];
+
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const nav = user?.role === "admin" ? adminNav : sellerNav;
+  const nav =
+    user?.role === "admin" ? adminNav
+    : user?.role === "financial" ? financeiroNav
+    : sellerNav;
 
   function isActive(href: string) {
     if (href === "/clientes") {
@@ -152,7 +164,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         <div className="px-3 py-2">
           <p className="text-xs font-semibold text-white truncate">{user?.name}</p>
           <p className="text-xs" style={{ color: "rgba(255,255,255,.35)" }}>
-            {user?.role === "admin" ? "Administrador" : "Vendedor"}
+            {user?.role === "admin" ? "Administrador" : user?.role === "financial" ? "Financeiro" : "Vendedor"}
           </p>
         </div>
 
