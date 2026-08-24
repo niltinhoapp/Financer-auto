@@ -36,6 +36,10 @@ export interface Revision {
   photos: string[];
   notes?: string;
   cost?: number;
+  // Data prevista da próxima revisão (opcional, preenchido pela oficina/admin).
+  // Base para futuras automações de lembrete (Fase 7 do ROADMAP) — não há
+  // nenhum job/notificação usando este campo ainda.
+  nextDueDate?: string;
   createdBy: string;
   createdAt: string;
 }

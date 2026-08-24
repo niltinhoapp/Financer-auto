@@ -12,5 +12,6 @@
     "skipLibCheck": true
   },
   "compileOnSave": true,
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/connectors-registry.ts", "src/connectors/pix-receiver.example.ts"]
 }

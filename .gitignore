@@ -4,7 +4,14 @@ node_modules/
 *.local
 .next/
 dist/
-lib/
+functions/lib/
 .firebase/
 firebase-debug.log
 .firebaserc.local
+scripts/serviceAccount.json
+
+.vercel
+
+# Vercel CLI config (contains tokens & credentials)
+.vercel-config/
+*.vercel-config/

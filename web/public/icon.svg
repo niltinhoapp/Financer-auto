@@ -1,0 +1,46 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- fundo arredondado (área segura para máscara) -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#shine)"/>
+  <!-- carro estilizado branco, centralizado -->
+  <g transform="translate(256 268)" fill="#ffffff">
+    <!-- corpo do carro -->
+    <path d="M-150 18
+             C-150 6 -142 -2 -130 -2
+             L-108 -2
+             L-78 -52
+             C-71 -64 -58 -72 -44 -72
+             L52 -72
+             C68 -72 82 -63 90 -49
+             L112 -8
+             L130 -2
+             C142 0 150 9 150 22
+             L150 44
+             C150 54 142 62 132 62
+             L116 62
+             A34 34 0 0 1 48 62
+             L-48 62
+             A34 34 0 0 1 -116 62
+             L-132 62
+             C-142 62 -150 54 -150 44
+             Z"/>
+    <!-- janelas (recorte azul) -->
+    <path d="M-58 -50 L-36 -10 L-6 -10 L-6 -50 Z" fill="#3b5bd6"/>
+    <path d="M12 -50 L12 -10 L92 -10 L74 -44 C70 -48 64 -50 58 -50 Z" fill="#3b5bd6"/>
+  </g>
+  <!-- rodas -->
+  <circle cx="208" cy="330" r="26" fill="#0f172a"/>
+  <circle cx="208" cy="330" r="11" fill="#ffffff"/>
+  <circle cx="304" cy="330" r="26" fill="#0f172a"/>
+  <circle cx="304" cy="330" r="11" fill="#ffffff"/>
+</svg>

@@ -10,76 +10,127 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function getUserRole() {
+      return getUser().role;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && getUser().role == 'admin';
+      return isAuthenticated() && getUserRole() == 'admin';
     }
 
     function isSeller() {
-      return isAuthenticated() && getUser().role == 'seller';
+      return isAuthenticated() && getUserRole() == 'seller';
     }
 
     function isAdminOrSeller() {
-      return isAdmin() || isSeller();
+      return isAuthenticated() && getUserRole() in ['admin', 'seller'];
+    }
+
+    function isFinanceiro() {
+      return isAuthenticated() && getUserRole() == 'financial';
+    }
+
+    // Qualquer papel interno da loja (admin, vendedor ou financeiro) —
+    // usado para leituras/ações que não distinguem entre esses três.
+    function isStaff() {
+      return isAuthenticated() && getUserRole() in ['admin', 'seller', 'financial'];
     }
 
     function isCustomer() {
-      return isAuthenticated() && getUser().role == 'customer';
+      return isAuthenticated() && getUserRole() == 'customer';
+    }
+
+    // O campo "customerId" em contracts/payments/etc. referencia o ID do
+    // documento em customers/ — NÃO o uid de autenticação do cliente.
+    // O vínculo uid -> customerId fica em users/{uid}.customerId.
+    function myCustomerId() {
+      return getUser().customerId;
+    }
+
+    function getContract() {
+      return get(/databases/$(database)/documents/contracts/$(contractId)).data;
     }
 
     // Users
     match /users/{uid} {
       allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
-      allow create: if isAdmin();
+      // Visitante da loja pode criar a própria conta, mas SOMENTE como prospect
+      allow create: if isAdmin()
+        || (isAuthenticated() && request.auth.uid == uid
+            && request.resource.data.role == 'prospect');
       allow update: if isAdmin() || request.auth.uid == uid;
       allow delete: if isAdmin();
     }
 
-    // Vehicles
+    // Vehicles — leitura pública (loja virtual)
     match /vehicles/{vehicleId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // público: qualquer visitante pode ver veículos disponíveis
       allow create, update: if isAdminOrSeller();
       allow delete: if isAdmin();
     }
 
     // Customers
     match /customers/{customerId} {
-      allow read: if isAdminOrSeller();
-      allow create, update: if isAdminOrSeller();
+      allow read: if isAdminOrSeller() || (isCustomer() && customerId == myCustomerId());
+      allow create: if isAdminOrSeller();
+      // Cliente pode completar/atualizar apenas os próprios dados pessoais
+      // (nunca campos de controle como approvalStatus, restricted, authUid)
+      allow update: if isAdminOrSeller()
+        || (isCustomer() && customerId == myCustomerId()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['name', 'cpf', 'rg', 'birthDate', 'phone', 'email', 'address', 'updatedAt']));
       allow delete: if isAdmin();
+
+      // Documents subcollection (uploaded via Cloud Function)
+      match /documents/{docTipo} {
+        allow read: if isAdminOrSeller() || (isCustomer() && customerId == myCustomerId());
+        // Writes handled by Cloud Function (Admin SDK); cliente não escreve direto
+        allow write: if isAdmin();
+      }
     }
 
     // Contracts
     match /contracts/{contractId} {
-      allow read: if isAdmin()
+      allow read: if isAdmin() || isFinanceiro()
         || (isSeller() && resource.data.sellerId == request.auth.uid)
-        || (isCustomer() && resource.data.customerId == request.auth.uid);
+        || (isCustomer() && resource.data.customerId == myCustomerId());
       allow create: if isAdminOrSeller();
       allow update: if isAdmin();
       allow delete: if isAdmin();
 
       // Installments subcollection
       match /installments/{installmentId} {
-        allow read: if isAdmin()
-          || (isSeller() && get(/databases/$(database)/documents/contracts/$(contractId)).data.sellerId == request.auth.uid)
-          || (isCustomer() && get(/databases/$(database)/documents/contracts/$(contractId)).data.customerId == request.auth.uid);
-        allow create, update: if isAdmin();
+        allow read: if isAdmin() || isFinanceiro()
+          || (isSeller() && getContract().sellerId == request.auth.uid)
+          || (isCustomer() && getContract().customerId == myCustomerId());
+        // Financeiro registra baixa de pagamento (Recebimentos grava direto
+        // no Firestore, não via Cloud Function) — por isso precisa de update.
+        allow create: if isAdmin();
+        allow update: if isAdmin() || isFinanceiro();
         allow delete: if isAdmin();
       }
     }
 
+    // Consultas collection-group em installments (Dashboard, Recebimentos,
+    // Fluxo de Caixa). As regras aninhadas acima NÃO se aplicam a
+    // collectionGroup() — esta regra dedicada é necessária.
+    match /{path=**}/installments/{installmentId} {
+      allow read: if isStaff();
+    }
+
     // Payments
     match /payments/{paymentId} {
-      allow read: if isAdmin()
+      allow read: if isAdmin() || isFinanceiro()
         || (isSeller() && resource.data.registeredBy == request.auth.uid)
-        || (isCustomer() && resource.data.customerId == request.auth.uid);
-      allow create: if isAdmin();
+        || (isCustomer() && resource.data.customerId == myCustomerId());
+      allow create: if isAdmin() || isFinanceiro();
       allow update, delete: if isAdmin();
     }
 
     // Warranties
     match /warranties/{warrantyId} {
       allow read: if isAdminOrSeller()
-        || (isCustomer() && resource.data.customerId == request.auth.uid);
+        || (isCustomer() && resource.data.customerId == myCustomerId());
       allow create, update: if isAdminOrSeller();
       allow delete: if isAdmin();
     }
@@ -93,22 +144,88 @@ service cloud.firestore {
     // Revisions
     match /revisions/{revisionId} {
       allow read: if isAdminOrSeller()
-        || (isCustomer() && resource.data.customerId == request.auth.uid);
+        || (isCustomer() && resource.data.customerId == myCustomerId());
       allow create, update: if isAdminOrSeller();
       allow delete: if isAdmin();
     }
 
-    // Commissions
-    match /commissions/{commissionId} {
-      allow read: if isAdmin()
-        || (isSeller() && resource.data.sellerId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+    // Payment Requests (solicitações de pagamento criadas pelo cliente)
+    match /paymentRequests/{reqId} {
+      allow read: if isAdmin() || isFinanceiro() || (isCustomer() && resource.data.customerId == myCustomerId());
+      allow create: if isCustomer() && request.resource.data.customerId == myCustomerId();
+      // Confirmar/recusar solicitação é a ação principal da tela de Recebimentos.
+      allow update, delete: if isAdmin() || isFinanceiro();
     }
 
-    // Audit logs
+    // Config (chave PIX, dados da empresa)
+    match /config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Config pública da loja virtual (WhatsApp de contato) — leitura aberta
+    match /config/loja {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Config da API de WhatsApp (contém chave secreta) — somente admin
+    match /config/whatsapp {
+      allow read, write: if isAdmin();
+    }
+
+    // Leads (interessados da loja virtual — criação pública, leitura restrita)
+    match /leads/{leadId} {
+      // Qualquer pessoa pode criar um lead (mesmo sem conta)
+      allow create: if true;
+      // Leitura e gestão somente por admin/seller
+      allow read, update, delete: if isAdminOrSeller();
+    }
+
+    // Exchange Requests (solicitações de troca de veículo)
+    match /exchangeRequests/{reqId} {
+      allow read: if isAdmin() || (isCustomer() && resource.data.customerId == myCustomerId());
+      allow create: if isCustomer() && request.resource.data.customerId == myCustomerId();
+      allow update, delete: if isAdmin();
+    }
+
+    // Commissions
+    match /commissions/{commissionId} {
+      allow read: if isAdmin() || isFinanceiro()
+        || (isSeller() && resource.data.sellerId == request.auth.uid);
+      // Criar/excluir comissão é decisão de negócio (admin). Marcar como paga
+      // é operação de tesouraria — financeiro também pode.
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isFinanceiro();
+    }
+
+    // Expenses (despesas operacionais — fluxo de caixa)
+    match /expenses/{expenseId} {
+      allow read: if isStaff();
+      allow create, update, delete: if isAdmin() || isFinanceiro();
+    }
+
+    // Stats (agregados do dashboard) — leitura por staff, escrita só pela function
+    match /stats/{docId} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+
+    // Notifications (avisos de vencimento/cobrança gerados pelo robô diário)
+    match /notifications/{notifId} {
+      allow read, update: if isStaff();
+      // Criação somente pela Cloud Function (Admin SDK)
+      allow create, delete: if isAdmin();
+    }
+
+    // Audit logs — criação restrita a papéis internos (autores legítimos via
+    // registrarAuditoria() no painel). Um customer/prospect autenticado não
+    // tem motivo para escrever aqui; abrir para isAuthenticated() permitia
+    // forjar entradas na trilha de auditoria.
     match /audit/{logId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated();
+      allow create: if isStaff()
+        && request.resource.data.atorUid == request.auth.uid;
       allow update, delete: if false;
     }
   }
