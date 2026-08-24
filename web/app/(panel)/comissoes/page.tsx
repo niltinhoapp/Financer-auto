@@ -210,7 +210,7 @@ export default function ComissoesPage() {
                   <div className="flex-1">
                     <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{s.sellerName}</p>
                     <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      {s.commissions.length} comissão{s.commissions.length !== 1 ? "ões" : ""}
+                      {s.commissions.length} {s.commissions.length !== 1 ? "comissões" : "comissão"}
                     </p>
                   </div>
                   <div className="text-right mr-2">
