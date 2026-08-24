@@ -47,7 +47,7 @@ service cloud.firestore {
       return getUser().customerId;
     }
 
-    function getContract() {
+    function getContract(contractId) {
       return get(/databases/$(database)/documents/contracts/$(contractId)).data;
     }
 
@@ -101,8 +101,8 @@ service cloud.firestore {
       // Installments subcollection
       match /installments/{installmentId} {
         allow read: if isAdmin() || isFinanceiro()
-          || (isSeller() && getContract().sellerId == request.auth.uid)
-          || (isCustomer() && getContract().customerId == myCustomerId());
+          || (isSeller() && getContract(contractId).sellerId == request.auth.uid)
+          || (isCustomer() && getContract(contractId).customerId == myCustomerId());
         // Financeiro registra baixa de pagamento (Recebimentos grava direto
         // no Firestore, não via Cloud Function) — por isso precisa de update.
         allow create: if isAdmin();

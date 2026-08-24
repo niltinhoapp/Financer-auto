@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { getUsersByRole } from "@/lib/firestore/users";
 import { getContracts } from "@/lib/firestore/contracts";
-import { criarVendedorFn, excluirVendedorFn, criarFinanceiroFn } from "@/lib/functions";
+import { criarVendedorFn, excluirVendedorFn, criarFinanceiroFn, excluirFinanceiroFn } from "@/lib/functions";
 import { formatCurrency } from "@/lib/utils";
 import type { User } from "@financer-auto/shared";
 import { Plus, UserCog, Trash2, Wallet } from "lucide-react";
@@ -28,6 +28,8 @@ export default function VendedoresPage() {
   const [savingFinanceiro, setSavingFinanceiro] = useState(false);
   const [financeiroError, setFinanceiroError] = useState("");
   const [financeiroForm, setFinanceiroForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [deletingFinanceiroUid, setDeletingFinanceiroUid] = useState<string | null>(null);
+  const [deleteFinanceiroError, setDeleteFinanceiroError] = useState("");
 
   async function load() {
     try {
@@ -141,6 +143,35 @@ export default function VendedoresPage() {
       setDeleteError(message);
     } finally {
       setDeletingUid(null);
+    }
+  }
+
+  async function handleDeleteFinanceiro(financeiro: User) {
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir o financeiro "${financeiro.name}"?\n\n` +
+      `Se ele já tiver pagamentos registrados, ele será apenas desativado (para preservar o histórico). ` +
+      `Caso contrário, será removido permanentemente.`
+    );
+    if (!confirmed) return;
+
+    setDeletingFinanceiroUid(financeiro.uid);
+    setDeleteFinanceiroError("");
+    try {
+      const res = await excluirFinanceiroFn({ uid: financeiro.uid });
+      if (res.data.mode === "deactivated") {
+        toast(`"${financeiro.name}" possui pagamentos registrados e foi apenas desativado.`, "info");
+      }
+      load();
+    } catch (err: unknown) {
+      console.error("Erro ao excluir financeiro:", err);
+      Sentry.captureException(err);
+      const message =
+        (err as { details?: string; message?: string })?.details ??
+        (err as Error)?.message ??
+        "Erro ao excluir financeiro.";
+      setDeleteFinanceiroError(message);
+    } finally {
+      setDeletingFinanceiroUid(null);
     }
   }
 
@@ -379,6 +410,9 @@ export default function VendedoresPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {deleteFinanceiroError && (
+            <p className="text-sm text-red-600 bg-red-50 px-4 py-2.5 border-b border-red-100">{deleteFinanceiroError}</p>
+          )}
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -386,6 +420,7 @@ export default function VendedoresPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Telefone</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -404,6 +439,17 @@ export default function VendedoresPage() {
                     >
                       {f.active ? "Ativo" : "Inativo"}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleDeleteFinanceiro(f)}
+                      disabled={deletingFinanceiroUid === f.uid}
+                      title="Excluir financeiro"
+                      className="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      {deletingFinanceiroUid === f.uid ? "Excluindo..." : "Excluir"}
+                    </button>
                   </td>
                 </tr>
               ))}

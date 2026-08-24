@@ -25,6 +25,11 @@ export const excluirVendedorFn = httpsCallable<
   { success: boolean; mode: "deleted" | "deactivated" }
 >(functions, "excluirVendedor");
 
+export const excluirFinanceiroFn = httpsCallable<
+  { uid: string },
+  { success: boolean; mode: "deleted" | "deactivated" }
+>(functions, "excluirFinanceiro");
+
 export const assinarContratoFn = httpsCallable<
   { contractId: string; signerName: string; signerCpf: string },
   { success: boolean; signature: { signedAt: string; signerName: string; signerCpf: string } }

@@ -337,6 +337,57 @@ export const excluirVendedor = onCall(async (request) => {
   return { success: true, mode: "deleted" as const };
 });
 
+// Excluir (ou desativar) usuário financeiro — só admin
+export const excluirFinanceiro = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) throw new HttpsError("unauthenticated", "Não autenticado");
+
+  const callerDoc = await db.collection("users").doc(callerUid).get();
+  if (callerDoc.data()?.role !== "admin") {
+    throw new HttpsError("permission-denied", "Apenas administradores podem excluir usuários financeiros");
+  }
+
+  const { uid } = request.data as { uid: string };
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "uid é obrigatório");
+  }
+  if (uid === callerUid) {
+    throw new HttpsError("failed-precondition", "Você não pode excluir a si mesmo");
+  }
+
+  const targetDoc = await db.collection("users").doc(uid).get();
+  const targetData = targetDoc.data();
+  if (!targetDoc.exists || targetData?.role !== "financial") {
+    throw new HttpsError("not-found", "Usuário financeiro não encontrado");
+  }
+
+  // Verifica se existem pagamentos registrados por este financeiro — se houver,
+  // não apagamos (preservaria histórico/relatórios quebrados); apenas desativamos.
+  const pagamentosSnap = await db.collection("payments").where("registeredBy", "==", uid).limit(1).get();
+
+  if (!pagamentosSnap.empty) {
+    await db.collection("users").doc(uid).update({
+      active: false,
+      updatedAt: new Date().toISOString(),
+    });
+    try {
+      await admin.auth().updateUser(uid, { disabled: true });
+    } catch {
+      // se não existir mais no Auth, ignora
+    }
+    return { success: true, mode: "deactivated" as const };
+  }
+
+  // Sem pagamentos vinculados — pode remover por completo
+  await db.collection("users").doc(uid).delete();
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch {
+    // se não existir mais no Auth, ignora
+  }
+  return { success: true, mode: "deleted" as const };
+});
+
 // Assinatura eletrônica do contrato pelo próprio cliente
 export const assinarContrato = onCall(async (request) => {
   const callerUid = request.auth?.uid;
