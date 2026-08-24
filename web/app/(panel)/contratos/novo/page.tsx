@@ -202,8 +202,12 @@ export default function NovoContratoPage() {
         penaltyRate: financiamento.multa,
         dailyInterestRate: financiamento.jurosDiario,
         notes: financiamento.notas,
-        docsOverrideBy: (!docsOk && docsOverride) ? user.uid : undefined,
-        docsOverrideAt: (!docsOk && docsOverride) ? new Date().toISOString() : undefined,
+        // Admin pode prosseguir sem marcar o toggle explícito (ver `disabled` do
+        // botão abaixo) — nesse caso o bypass também precisa ficar registrado.
+        ...((!docsOk && (docsOverride || user.role === "admin")) ? {
+          docsOverrideBy: user.uid,
+          docsOverrideAt: new Date().toISOString(),
+        } : {}),
         docsPendingAtSale: docsOk ? [] : docsFaltando,
       });
       router.push(`/contratos/${id}`);
