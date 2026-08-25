@@ -170,6 +170,22 @@ Loja recolhe documentos do comprador e envia proposta pro banco financiar o veí
 
 ---
 
+## 0.1 Dívida técnica registrada — modalidades financeiras por revenda
+
+**Contexto (2026-08-24):** a comunicação pública (vitrine, metadata, PWA) foi reposicionada de "financiamento próprio como única modalidade" para uma linguagem neutra, já que o produto vai passar a suportar múltiplas modalidades por loja:
+
+```
+À vista
++ Financiamento próprio da revenda (já existe, não foi alterado)
++ Financiamento bancário (BV Open — ver seção 1)
+```
+
+Uma revenda poderá futuramente trabalhar só com financiamento próprio, só com bancário, com os dois, ou também oferecer venda à vista — configurável por loja.
+
+**Ainda não implementado.** Antes de adicionar qualquer campo de "modalidades habilitadas" em Store/Settings, fazer um PRE-CHECK dedicado do modelo atual (hoje não existe entidade "Store" separada — configuração vive em `config/{docId}` no Firestore, ver [`configuracoes/page.tsx`](web/app/(panel)/configuracoes/page.tsx)) antes de desenhar o schema. Não modelar antecipadamente.
+
+---
+
 ## 1. Financiamento — BV Open (piloto)
 
 **Objetivo:** validar tecnicamente o fluxo de proposta de financiamento com um banco real via API antes de negociar hub multibanco.
