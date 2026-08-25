@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   const titulo = `${v.brand} ${v.model} ${v.year} — ${formatBRL(v.price)} | Financer Auto`;
   const desc = `${v.brand} ${v.model} ${v.year}, ${v.mileage.toLocaleString("pt-BR")} km, ${v.color}. ` +
-    `Parcelamento direto com a loja, sem banco e sem consulta ao SPC/Serasa.`;
+    `Opções de pagamento e financiamento disponíveis.`;
   const img = v.photos?.[0];
   return {
     title: titulo,

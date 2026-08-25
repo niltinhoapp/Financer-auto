@@ -1,7 +1,7 @@
 {
   "name": "Financer Auto",
   "short_name": "Financer",
-  "description": "Gestão de revendas com financiamento próprio — parcelas, contratos e área do cliente.",
+  "description": "Gestão de revendas de veículos — parcelas, contratos e área do cliente.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

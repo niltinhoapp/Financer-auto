@@ -42,7 +42,7 @@ export function VeiculoDetalhe() {
     if (!vehicle) return;
     const url = typeof window !== "undefined" ? window.location.href : "";
     const titulo = `${vehicle.brand} ${vehicle.model} ${vehicle.year}`;
-    const texto = `Confira este ${titulo} por ${formatCurrency(vehicle.price)} — parcelamento direto com a loja!`;
+    const texto = `Confira este ${titulo} por ${formatCurrency(vehicle.price)}!`;
     // Web Share API (celular abre o menu nativo: WhatsApp, etc.)
     if (navigator.share) {
       try { await navigator.share({ title: titulo, text: texto, url }); return; } catch { /* cancelado */ }
@@ -212,7 +212,7 @@ export function VeiculoDetalhe() {
               {formatCurrency(vehicle.price)}
             </p>
             <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-              Parcele em até 60x direto com a loja
+              Consulte as opções de pagamento e financiamento
             </p>
             <div className="flex items-center gap-1.5 mt-3 flex-wrap">
               <span className="badge badge-success"><ShieldCheck className="w-3 h-3" /> Revisado</span>

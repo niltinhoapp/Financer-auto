@@ -30,7 +30,7 @@ export default function LojaLayout({ children }: { children: React.ReactNode }) 
           </div>
           <div>
             <p className="font-bold text-sm leading-tight" style={{ color: "var(--text-primary)" }}>Financer Auto</p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Veículos com financiamento próprio</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Veículos com opções de pagamento</p>
           </div>
         </Link>
 

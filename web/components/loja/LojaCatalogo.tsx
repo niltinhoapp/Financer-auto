@@ -110,7 +110,7 @@ export function LojaCatalogo({ initial }: { initial: Vehicle[] }) {
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium mb-4"
                style={{ background: "rgba(59,130,246,.15)", border: "1px solid rgba(59,130,246,.3)", color: "#60a5fa" }}>
             <Sparkles className="w-3.5 h-3.5" />
-            Sem consulta ao SPC/Serasa
+            Compra facilitada
           </div>
           <h1 className="text-4xl font-bold text-white mb-3 leading-tight">
             Encontre o seu<br />
@@ -119,7 +119,7 @@ export function LojaCatalogo({ initial }: { initial: Vehicle[] }) {
             </span>
           </h1>
           <p className="text-gray-400 mb-8">
-            Carros revisados, com parcelamento direto com a loja — sem banco, sem burocracia.
+            Veículos selecionados, com opções de pagamento e financiamento para você escolher.
           </p>
 
           {/* Search bar */}

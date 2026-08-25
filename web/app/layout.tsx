@@ -9,7 +9,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Financer Auto",
-  description: "Sistema de Gestão de Revendas com Financiamento Próprio",
+  description: "Sistema de Gestão de Revendas de Veículos",
   manifest: "/manifest.webmanifest",
   applicationName: "Financer Auto",
   appleWebApp: {
